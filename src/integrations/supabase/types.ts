@@ -58,8 +58,10 @@ export type Database = {
           created_at: string;
           created_by: string;
           created_by_email: string;
+          code: string;
           id: string;
           name: string;
+          notes: string;
           quantity: number;
           unit: string;
         };
@@ -68,8 +70,10 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           created_by_email?: string;
+          code?: string;
           id?: string;
           name: string;
+          notes?: string;
           quantity?: number;
           unit?: string;
         };
@@ -78,8 +82,10 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           created_by_email?: string;
+          code?: string;
           id?: string;
           name?: string;
+          notes?: string;
           quantity?: number;
           unit?: string;
         };
@@ -119,6 +125,7 @@ export type Database = {
         Args: {
           p_initial_quantity?: number | null;
           p_name: string;
+          p_notes?: string | null;
           p_unit: string;
         };
         Returns: string;

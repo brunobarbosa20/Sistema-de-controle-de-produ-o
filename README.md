@@ -3,9 +3,11 @@
 Aplicação responsiva para cadastro de produtos, controle de saldo por unidade
 (UN) ou grama (GR), registro de entradas e saídas e consulta do histórico.
 Cada produto usa uma única unidade fixa: peças são controladas em UN e itens
-pesados em gramas inteiras (GR). O valor de itens em GR é informado por grama.
-O cadastro do produto não guarda preço; os valores são informados e registrados
-nas entradas. Saídas registram somente quantidade e observação.
+pesados em gramas inteiras (GR). Nas entradas de itens em GR, informe o peso e o
+valor total do pacote; o sistema calcula e registra o custo por grama. Para itens
+em UN, informe o custo por unidade. O cadastro do produto não guarda preço; os
+valores são registrados nas entradas. Saídas registram somente quantidade e
+observação.
 
 ## Tecnologias
 
@@ -27,13 +29,17 @@ Requisitos: Node.js e npm.
    projeto Supabase.
 3. No Supabase, aplique as migrações SQL em ordem. Em uma instalação nova,
    aplique `0000_migration.sql`, `0001_shared_inventory.sql`,
-   `0002_product_archive.sql`, `0003_grams_unit.sql` e
-   `0004_entry_only_prices.sql`, nesta ordem. Se o estoque compartilhado, o
-   arquivamento e a unidade GR já estão ativos, aplique somente
-   `0004_entry_only_prices.sql`. A migração `0001` configura o estoque
-   compartilhado e promove `bruno@teste.com` como primeiro administrador.
+   `0002_product_archive.sql`, `0003_grams_unit.sql`,
+   `0004_entry_only_prices.sql`, `0005_product_code.sql` e
+   `0006_product_observations.sql`, nesta ordem. Se as migrações anteriores já
+   estão ativas, aplique somente `0006_product_observations.sql`. A
+   migração `0001` configura o estoque compartilhado e promove
+   `bruno@teste.com` como primeiro administrador.
    A migração `0003` converte os saldos e o histórico existentes de KG para GR,
    preservando os valores totais ao converter também os preços por unidade.
+   A migração `0005` atribui códigos únicos no formato `MP00000001` aos produtos
+   existentes e novos.
+   A migração `0006` adiciona observações aos itens e à função de cadastro.
 4. Inicie a aplicação:
 
    ```sh

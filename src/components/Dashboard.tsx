@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -37,11 +38,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { brl, formatQty, parseDecimal, validateQuantity, type Unit } from "@/lib/stock";
+import {
+  brl,
+  calculateUnitPrice,
+  calculateWeightedAverageUnitCost,
+  formatAverageUnitCost,
+  formatCurrencyInput,
+  formatQty,
+  formatQuantityInput,
+  formatUnitPrice,
+  parseCurrencyInput,
+  validateQuantity,
+  type Unit,
+} from "@/lib/stock";
 
 type Product = {
   id: string;
+  code: string;
   name: string;
+  notes: string;
   unit: Unit;
   quantity: number;
   active: boolean;
@@ -56,7 +71,7 @@ type Movement = {
   note: string | null;
   created_at: string;
   created_by_email: string;
-  products: { name: string; unit: Unit } | null;
+  products: { code: string; name: string; unit: Unit } | null;
 };
 
 const roleLabels: Record<InventoryRole, string> = {
@@ -91,7 +106,7 @@ function useProducts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,name,unit,quantity,active")
+        .select("id,code,name,notes,unit,quantity,active")
         .order("name");
       if (error) throw error;
       return data.map((p) => ({
@@ -108,7 +123,9 @@ function useMovements() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("movements")
-        .select("id,type,quantity,unit_price,note,created_at,created_by_email,products(name,unit)")
+        .select(
+          "id,type,quantity,unit_price,note,created_at,created_by_email,products(code,name,unit)",
+        )
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -122,10 +139,10 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
   const products = useProducts();
   const movements = useMovements();
   const membership = useInventoryRole(userId);
-  const [dialog, setDialog] = useState<null | "product" | "edit-product" | "entrada" | "saida">(
-    null,
-  );
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [dialog, setDialog] = useState<
+    null | "product" | "product-detail" | "edit-product" | "entrada" | "saida"
+  >(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [productToDeactivate, setProductToDeactivate] = useState<Product | null>(null);
   const [showInactiveProducts, setShowInactiveProducts] = useState(false);
   const [preset, setPreset] = useState<string | undefined>();
@@ -135,20 +152,24 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
   const list = (products.data ?? []).filter(
     (product) =>
       product.active !== showInactiveProducts &&
-      product.name.toLowerCase().includes(q.toLowerCase()),
+      (product.name.toLowerCase().includes(q.toLowerCase()) ||
+        product.code.toLowerCase().includes(q.toLowerCase())),
   );
   const zero = activeProducts.filter((product) => product.quantity === 0).length;
   const role = membership.data;
   const canOperate = role === "admin" || role === "operator";
+  const selectedProduct = (products.data ?? []).find(
+    (product) => product.id === selectedProductId,
+  );
 
   const open = (d: "entrada" | "saida", id?: string) => {
     setPreset(id);
     setDialog(d);
   };
 
-  const editProduct = (product: Product) => {
-    setEditingProduct(product);
-    setDialog("edit-product");
+  const openProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setDialog("product-detail");
   };
 
   async function changeProductStatus(product: Product, active: boolean) {
@@ -291,65 +312,27 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
             <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
               {list.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-3 p-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.unit.toLowerCase()}</p>
-                  </div>
-                  <span
-                    className={`font-mono text-base ${p.quantity === 0 ? "text-destructive" : ""}`}
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+                    onClick={() => openProduct(p.id)}
+                    aria-label={`Detalhes de ${p.name}, saldo ${formatQty(p.quantity, p.unit)}`}
                   >
-                    {formatQty(p.quantity, p.unit)}
-                  </span>
-                  {canOperate && !showInactiveProducts && (
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label={`Editar ${p.name}`}
-                        onClick={() => editProduct(p)}
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{p.name}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {p.code} · {p.unit.toLowerCase()}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-xs text-muted-foreground">Saldo atual</span>
+                      <span
+                        className={`font-mono text-base ${p.quantity === 0 ? "text-destructive" : ""}`}
                       >
-                        <Pencil />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="entrada"
-                        aria-label={`Entrada ${p.name}`}
-                        onClick={() => open("entrada", p.id)}
-                      >
-                        <ArrowDownToLine />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="saida"
-                        aria-label={`Saída ${p.name}`}
-                        onClick={() => open("saida", p.id)}
-                      >
-                        <ArrowUpFromLine />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label={`Inativar ${p.name}`}
-                        title={
-                          p.quantity === 0 ? "Inativar produto" : "Zere o saldo antes de inativar"
-                        }
-                        disabled={p.quantity !== 0}
-                        onClick={() => setProductToDeactivate(p)}
-                      >
-                        <Archive />
-                      </Button>
-                    </div>
-                  )}
-                  {canOperate && showInactiveProducts && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label={`Reativar ${p.name}`}
-                      onClick={() => void changeProductStatus(p, true)}
-                    >
-                      <RotateCcw /> Reativar
-                    </Button>
-                  )}
+                        {formatQty(p.quantity, p.unit)}
+                      </span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -381,6 +364,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
                         {m.products?.name ?? "Produto removido"}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
+                        {m.products?.code ? `${m.products.code} · ` : ""}
                         {new Date(m.created_at).toLocaleString("pt-BR", {
                           dateStyle: "short",
                           timeStyle: "short",
@@ -395,9 +379,10 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
                         {formatQty(Number(m.quantity), unit)}
                       </p>
                       {m.type === "entrada" && (
-                        <p className="text-xs text-muted-foreground">
-                          {brl(Number(m.quantity) * Number(m.unit_price))}
-                        </p>
+                        <div className="text-xs text-muted-foreground">
+                          <p>{brl(Number(m.quantity) * Number(m.unit_price))} total</p>
+                          <p>{formatUnitPrice(Number(m.unit_price), unit)}</p>
+                        </div>
                       )}
                     </div>
                   </li>
@@ -428,16 +413,38 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
         </nav>
       )}
 
-      <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent className="max-w-md">
+      <Dialog
+        open={dialog !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialog(null);
+            setSelectedProductId(null);
+          }
+        }}
+      >
+        <DialogContent
+          className={
+            dialog === "product-detail"
+              ? "max-h-[90vh] max-w-2xl overflow-y-auto"
+              : "max-w-md"
+          }
+        >
           {dialog === "product" && <ProductForm onDone={() => setDialog(null)} />}
-          {dialog === "edit-product" && editingProduct && (
+          {dialog === "product-detail" && selectedProduct && (
+            <ProductDetail
+              product={selectedProduct}
+              canOperate={canOperate}
+              onEntry={() => open("entrada", selectedProduct.id)}
+              onExit={() => open("saida", selectedProduct.id)}
+              onEdit={() => setDialog("edit-product")}
+              onDeactivate={() => setProductToDeactivate(selectedProduct)}
+              onReactivate={() => void changeProductStatus(selectedProduct, true)}
+            />
+          )}
+          {dialog === "edit-product" && selectedProduct && (
             <EditProductForm
-              product={editingProduct}
-              onDone={() => {
-                setDialog(null);
-                setEditingProduct(null);
-              }}
+              product={selectedProduct}
+              onDone={() => setDialog("product-detail")}
             />
           )}
           {(dialog === "entrada" || dialog === "saida") && (
@@ -445,7 +452,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
               type={dialog}
               products={activeProducts}
               preset={preset}
-              onDone={() => setDialog(null)}
+              onDone={() => setDialog(selectedProductId ? "product-detail" : null)}
             />
           )}
         </DialogContent>
@@ -481,6 +488,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
 function EditProductForm({ product, onDone }: { product: Product; onDone: () => void }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(product.name);
+  const [notes, setNotes] = useState(product.notes);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -493,7 +501,7 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
     setBusy(true);
     const { data, error } = await supabase
       .from("products")
-      .update({ name: name.trim() })
+      .update({ name: name.trim(), notes: notes.trim() })
       .eq("id", product.id)
       .select("id")
       .single();
@@ -519,7 +527,7 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
         <DialogTitle>Editar produto</DialogTitle>
       </DialogHeader>
       <div className="space-y-1.5">
-        <Label htmlFor="product-description">Descrição do produto</Label>
+        <Label htmlFor="product-description">Nome do produto</Label>
         <Input
           id="product-description"
           autoFocus
@@ -527,10 +535,196 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
           onChange={(event) => setName(event.target.value)}
         />
       </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="product-notes">Observações</Label>
+        <Textarea
+          id="product-notes"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          rows={4}
+        />
+      </div>
       <Button type="submit" className="w-full" disabled={busy}>
         Salvar alterações
       </Button>
     </form>
+  );
+}
+
+function ProductDetail({
+  product,
+  canOperate,
+  onEntry,
+  onExit,
+  onEdit,
+  onDeactivate,
+  onReactivate,
+}: {
+  product: Product;
+  canOperate: boolean;
+  onEntry: () => void;
+  onExit: () => void;
+  onEdit: () => void;
+  onDeactivate: () => void;
+  onReactivate: () => void;
+}) {
+  const history = useQuery({
+    queryKey: ["product-movements", product.id],
+    queryFn: async () => {
+      const pageSize = 500;
+      const allMovements = [];
+      let offset = 0;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from("movements")
+          .select("id,type,quantity,unit_price,note,created_at,created_by_email")
+          .eq("product_id", product.id)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        allMovements.push(...data);
+        if (data.length < pageSize) return allMovements;
+        offset += pageSize;
+      }
+    },
+  });
+  const averageUnitCost = history.data
+    ? calculateWeightedAverageUnitCost(
+        history.data.map((movement) => ({
+          type: movement.type,
+          quantity: Number(movement.quantity),
+          unit_price: Number(movement.unit_price),
+          note: movement.note,
+        })),
+      )
+    : null;
+
+  return (
+    <div className="space-y-5">
+      <DialogHeader>
+        <DialogTitle>{product.name}</DialogTitle>
+        <p className="text-sm text-muted-foreground">
+          {product.code} · Unidade {product.unit}
+        </p>
+      </DialogHeader>
+      <section className="rounded-xl border bg-card p-4">
+        <p className="text-sm text-muted-foreground">Saldo atual</p>
+        <p className="mt-1 font-display text-3xl font-bold">
+          {formatQty(product.quantity, product.unit)}
+        </p>
+        <div className="mt-3 border-t pt-3">
+          <p className="text-sm text-muted-foreground">Custo médio ponderado</p>
+          {history.isLoading ? (
+            <p className="mt-1 text-sm text-muted-foreground">Calculando…</p>
+          ) : history.isError ? (
+            <p className="mt-1 text-sm text-destructive">Indisponível: erro ao carregar entradas.</p>
+          ) : averageUnitCost === null ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sem entradas com custo registrado.
+            </p>
+          ) : (
+            <p className="mt-1 font-medium">
+              {formatAverageUnitCost(averageUnitCost, product.unit)}
+            </p>
+          )}
+        </div>
+      </section>
+      {product.notes && (
+        <section className="space-y-1">
+          <h3 className="text-sm font-medium">Observações</h3>
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{product.notes}</p>
+        </section>
+      )}
+      {canOperate && (
+        <div className="flex flex-wrap gap-2">
+          {product.active ? (
+            <>
+              <Button variant="entrada" onClick={onEntry}>
+                <ArrowDownToLine /> Entrada
+              </Button>
+              <Button variant="saida" onClick={onExit}>
+                <ArrowUpFromLine /> Saída
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={onReactivate}>
+              <RotateCcw /> Reativar item
+            </Button>
+          )}
+          <Button variant="outline" onClick={onEdit}>
+            <Pencil /> Editar item
+          </Button>
+          {product.active && (
+            <Button
+              variant="outline"
+              title={product.quantity === 0 ? "Inativar produto" : "Zere o saldo antes de inativar"}
+              disabled={product.quantity !== 0}
+              onClick={onDeactivate}
+            >
+              <Archive /> Inativar item
+            </Button>
+          )}
+        </div>
+      )}
+      <section className="space-y-3">
+        <h3 className="font-semibold">Histórico completo</h3>
+        {history.isLoading ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Carregando histórico…
+          </p>
+        ) : history.isError ? (
+          <p role="alert" className="py-6 text-center text-sm text-destructive">
+            Não foi possível carregar o histórico: {history.error.message}
+          </p>
+        ) : history.data.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhuma movimentação registrada para este item.
+          </p>
+        ) : (
+          <ul className="divide-y overflow-hidden rounded-xl border">
+            {history.data.map((movement) => (
+              <li key={movement.id} className="flex items-center gap-3 p-3">
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${movement.type === "entrada" ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground"}`}
+                >
+                  {movement.type === "entrada" ? (
+                    <ArrowDownToLine className="h-4 w-4" />
+                  ) : (
+                    <ArrowUpFromLine className="h-4 w-4" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">
+                    {movement.type === "entrada" ? "Entrada" : "Saída"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {new Date(movement.created_at).toLocaleString("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                    {movement.note ? ` · ${movement.note}` : ""}
+                    {movement.created_by_email ? ` · por ${movement.created_by_email}` : ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono text-sm">
+                    {movement.type === "entrada" ? "+" : "−"}
+                    {formatQty(Number(movement.quantity), product.unit)}
+                  </p>
+                  {movement.type === "entrada" && (
+                    <p className="text-xs text-muted-foreground">
+                      {brl(Number(movement.quantity) * Number(movement.unit_price))}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -622,6 +816,7 @@ function MembersPanel() {
 function ProductForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
+  const [notes, setNotes] = useState("");
   const [unit, setUnit] = useState<Unit>("UN");
   const [initial, setInitial] = useState("");
   const [busy, setBusy] = useState(false);
@@ -642,17 +837,18 @@ function ProductForm({ onDone }: { onDone: () => void }) {
       qty = v.value;
     }
     setBusy(true);
-    const { error } = await supabase.rpc("create_inventory_product", {
+    const { data: productCode, error } = await supabase.rpc("create_inventory_product", {
       p_name: name.trim(),
       p_unit: unit,
       p_initial_quantity: qty ?? null,
+      p_notes: notes.trim() || null,
     });
     setBusy(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Produto cadastrado");
+    toast.success(`Produto cadastrado: ${productCode}`);
     qc.invalidateQueries();
     onDone();
   }
@@ -665,6 +861,15 @@ function ProductForm({ onDone }: { onDone: () => void }) {
       <div className="space-y-1.5">
         <Label>Nome</Label>
         <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="new-product-notes">Observações (opcional)</Label>
+        <Textarea
+          id="new-product-notes"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          rows={3}
+        />
       </div>
       <div className="space-y-1.5">
         <Label>Unidade</Label>
@@ -693,13 +898,34 @@ function ProductForm({ onDone }: { onDone: () => void }) {
           inputMode="decimal"
           placeholder={unit === "GR" ? "ex: 500" : "ex: 10"}
           value={initial}
-          onChange={(e) => setInitial(e.target.value)}
+          onChange={(e) => setInitial(formatQuantityInput(e.target.value))}
         />
       </div>
       <Button type="submit" className="w-full" disabled={busy}>
         Salvar
       </Button>
     </form>
+  );
+}
+
+function CalculatedGramPrice({
+  quantity,
+  packageTotal,
+}: {
+  quantity: string;
+  packageTotal: string;
+}) {
+  const parsedQuantity = validateQuantity(quantity, "GR");
+  const parsedTotal = parseCurrencyInput(packageTotal);
+  if (parsedQuantity.value === undefined || parsedTotal === null) return null;
+
+  return (
+    <p className="text-sm text-muted-foreground">
+      Custo calculado:{" "}
+      <span className="font-medium text-foreground">
+        {formatUnitPrice(calculateUnitPrice(parsedTotal, parsedQuantity.value), "GR")}
+      </span>
+    </p>
   );
 }
 
@@ -739,12 +965,17 @@ function MovementForm({
     }
     let entryPrice = 0;
     if (type === "entrada") {
-      const parsedPrice = parseDecimal(price);
+      const parsedPrice = parseCurrencyInput(price);
       if (parsedPrice === null) {
-        toast.error("Informe um valor válido para a entrada");
+        toast.error(
+          product.unit === "GR"
+            ? "Informe o valor total do pacote"
+            : "Informe um valor válido para a entrada",
+        );
         return;
       }
-      entryPrice = parsedPrice;
+      entryPrice =
+        product.unit === "GR" ? calculateUnitPrice(parsedPrice, v.value!) : parsedPrice;
     }
     setBusy(true);
     const { error } = await supabase.from("movements").insert({
@@ -788,7 +1019,7 @@ function MovementForm({
               <SelectContent>
                 {products.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                    {p.code} · {p.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -801,21 +1032,33 @@ function MovementForm({
                 inputMode="decimal"
                 placeholder={product?.unit === "GR" ? "ex: 500" : "ex: 1"}
                 value={qty}
-                onChange={(e) => setQty(e.target.value)}
+                onChange={(e) => setQty(formatQuantityInput(e.target.value))}
               />
             </div>
             {type === "entrada" && (
               <div className="space-y-1.5">
-                <Label>Valor por {product?.unit.toLowerCase() ?? "un"} (R$)</Label>
+                <Label>
+                  {product?.unit === "GR" ? "Valor total do pacote (R$)" : "Valor por unidade (R$)"}
+                </Label>
                 <Input
                   inputMode="decimal"
-                  placeholder={product?.unit === "GR" ? "ex: 0,05" : "0,00"}
+                  placeholder={product?.unit === "GR" ? "ex: 10,00" : "ex: 5,00"}
                   value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  onChange={(event) => {
+                    const input = event.currentTarget;
+                    const formatted = formatCurrencyInput(input.value);
+                    setPrice(formatted);
+                    requestAnimationFrame(() => {
+                      input.setSelectionRange(formatted.length, formatted.length);
+                    });
+                  }}
                 />
               </div>
             )}
           </div>
+          {type === "entrada" && product?.unit === "GR" && (
+            <CalculatedGramPrice quantity={qty} packageTotal={price} />
+          )}
           <div className="space-y-1.5">
             <Label>Observação</Label>
             <Input placeholder="opcional" value={note} onChange={(e) => setNote(e.target.value)} />

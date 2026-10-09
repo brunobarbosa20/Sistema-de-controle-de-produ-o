@@ -1,13 +1,80 @@
 export type Unit = "UN" | "GR";
 
-/** Aceita "2,5", "2.5", "1.234,56". Retorna null se inválido. */
+/** Aceita decimais locais e agrupamentos como "1.234" ou "1.234,56". */
 export function parseDecimal(input: string): number | null {
   let s = input.trim().replace(/\s/g, "");
   if (!s) return null;
   if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
   if (!/^\d+(\.\d+)?$/.test(s)) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
+}
+
+export function formatQuantityInput(input: string): string {
+  const digits = input.replace(/\D/g, "");
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+export function formatCurrencyInput(input: string): string {
+  const digits = input.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  if (!digits) return "";
+
+  const cents = digits.padStart(3, "0");
+  const wholePart = cents.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${wholePart},${cents.slice(-2)}`;
+}
+
+export function parseCurrencyInput(input: string): number | null {
+  const formatted = formatCurrencyInput(input);
+  return formatted ? parseDecimal(formatted) : null;
+}
+
+export function calculateUnitPrice(totalPrice: number, quantity: number): number {
+  return Math.round((totalPrice / quantity + Number.EPSILON) * 1_000_000) / 1_000_000;
+}
+
+export function formatUnitPrice(price: number, unit: Unit): string {
+  const formatted = price.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).replace(/\u00a0/g, " ");
+  return `${formatted} / ${unit === "GR" ? "gr" : "un"}`;
+}
+
+export function formatAverageUnitCost(price: number, unit: Unit): string {
+  const formatted = price
+    .toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 5,
+      maximumFractionDigits: 5,
+    })
+    .replace(/\u00a0/g, " ");
+  return `${formatted} / ${unit === "GR" ? "gr" : "un"}`;
+}
+
+export function calculateWeightedAverageUnitCost(
+  entries: ReadonlyArray<{
+    type: string;
+    quantity: number;
+    unit_price: number;
+    note: string | null;
+  }>,
+): number | null {
+  const pricedEntries = entries.filter(
+    (entry) => entry.type === "entrada" && entry.note !== "Saldo inicial",
+  );
+  const totalQuantity = pricedEntries.reduce((total, entry) => total + entry.quantity, 0);
+  if (totalQuantity === 0) return null;
+
+  const totalCost = pricedEntries.reduce(
+    (total, entry) => total + entry.quantity * entry.unit_price,
+    0,
+  );
+  return totalCost / totalQuantity;
 }
 
 /** UN e GR representam unidades inteiras: peças ou gramas. */
