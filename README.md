@@ -32,10 +32,12 @@ Requisitos: Node.js e npm.
    `0002_product_archive.sql`, `0003_grams_unit.sql`,
    `0004_entry_only_prices.sql`, `0005_product_code.sql`,
    `0006_product_observations.sql`, `0007_recipes.sql`,
-   `0008_cancelled_products.sql`, `0009_recipe_product_preregistration.sql` e
-   `0010_backfill_recipe_ingredients.sql` e `0011_milliliter_unit.sql`, nesta
-   ordem. Se as migrações até `0010` já estão ativas, aplique
-   `0011_milliliter_unit.sql`. A
+   `0008_cancelled_products.sql`, `0009_recipe_product_preregistration.sql`,
+   `0010_backfill_recipe_ingredients.sql`, `0011_milliliter_unit.sql` e
+   `0012_recipe_unit_conversion.sql`, nesta ordem. Se as migrações até `0010`
+   já estão ativas, aplique `0011_milliliter_unit.sql` e
+   `0012_recipe_unit_conversion.sql`; se `0011` já está ativa, aplique apenas
+   `0012_recipe_unit_conversion.sql`. A
    migração `0001` configura o estoque compartilhado e promove
    `bruno@teste.com` como primeiro administrador.
    A migração `0003` converte os saldos e o histórico existentes de KG para GR,
@@ -56,6 +58,8 @@ Requisitos: Node.js e npm.
    produtos compatíveis ou cria os pré-cadastros pendentes correspondentes.
    A migração `0011` habilita ML (mililitros) como unidade de estoque e de
    ingredientes, com cálculo do custo por mililitro nas entradas.
+   A migração `0012` permite configurar quantos gramas há em uma unidade de
+   produtos estocados em GR e usar esses produtos como UN nas receitas.
 4. Inicie a aplicação:
 
    ```sh
@@ -127,4 +131,6 @@ autenticado pode cadastrar uma receita; somente o criador pode editá-la ou
 excluí-la. Cada receita registra nome, rendimento em porções e ingredientes com
 quantidade inteira em UN ou GR. Ingredientes podem ser vinculados a produtos
 ativos do estoque ou salvos como ingredientes livres; salvar ou editar uma
-receita não altera o saldo do estoque.
+receita não altera o saldo do estoque. Produtos estocados em GR podem receber
+um peso por unidade opcional para exibir a equivalência nas receitas, sem mudar
+a unidade nem o saldo registrado no estoque.

@@ -32,6 +32,7 @@ type InventoryProduct = {
   code: string;
   name: string;
   unit: Unit;
+  grams_per_unit: number | null;
 };
 
 type RecipeIngredient = {
@@ -103,7 +104,7 @@ function useInventoryProducts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,code,name,unit")
+        .select("id,code,name,unit,grams_per_unit")
         .eq("active", true)
         .eq("cancelled", false)
         .eq("pending_registration", false)
@@ -112,6 +113,20 @@ function useInventoryProducts() {
       return data.map((product) => ({ ...product, unit: product.unit as Unit }));
     },
   });
+}
+
+function recipeUnitsForProduct(product: InventoryProduct): Unit[] {
+  return product.unit === "GR" && product.grams_per_unit !== null ? ["GR", "UN"] : [product.unit];
+}
+
+function stockGramsForIngredient(
+  quantity: number,
+  unit: Unit,
+  product: InventoryProduct | undefined,
+): string | null {
+  if (unit !== "UN" || product?.unit !== "GR" || product.grams_per_unit === null) return null;
+  const grams = BigInt(quantity) * BigInt(product.grams_per_unit);
+  return `${grams.toLocaleString("pt-BR")} GR no estoque`;
 }
 
 function RecipeForm({
@@ -131,6 +146,7 @@ function RecipeForm({
   const [ingredientName, setIngredientName] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("1");
   const [freeIngredientUnit, setFreeIngredientUnit] = useState<Unit>("GR");
+  const [ingredientUnit, setIngredientUnit] = useState<Unit>("GR");
   const [ingredients, setIngredients] = useState<IngredientDraft[]>(
     recipe?.ingredients.map((ingredient) => ({
       key: ingredient.id,
@@ -177,7 +193,7 @@ function RecipeForm({
         productId: product?.id ?? null,
         name: trimmedName,
         quantity,
-        unit: product?.unit ?? freeIngredientUnit,
+        unit: product ? ingredientUnit : freeIngredientUnit,
       },
     ]);
     if (!product) {
@@ -185,10 +201,12 @@ function RecipeForm({
     }
     setIngredientName("");
     setIngredientQuantity("1");
+    setIngredientUnit(freeIngredientUnit);
   }
 
   function addSuggestedProduct(product: InventoryProduct) {
     setIngredientName(product.name);
+    setIngredientUnit(product.unit);
   }
 
   async function saveRecipe(event: React.FormEvent<HTMLFormElement>) {
@@ -281,7 +299,16 @@ function RecipeForm({
             <Input
               id="ingredient-name"
               value={ingredientName}
-              onChange={(event) => setIngredientName(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setIngredientName(value);
+                const matchedProduct = products.find(
+                  (product) =>
+                    product.name.toLocaleLowerCase("pt-BR") ===
+                    value.trim().toLocaleLowerCase("pt-BR"),
+                );
+                if (matchedProduct) setIngredientUnit(matchedProduct.unit);
+              }}
               maxLength={120}
               placeholder="Digite para buscar no estoque"
             />
@@ -298,6 +325,9 @@ function RecipeForm({
                     <span>{product.name}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {product.code} · {product.unit}
+                      {product.unit === "GR" && product.grams_per_unit !== null
+                        ? ` · 1 UN = ${product.grams_per_unit} GR`
+                        : ""}
                     </span>
                   </button>
                 ))}
@@ -318,9 +348,27 @@ function RecipeForm({
           <div className="space-y-2">
             <Label>Unidade</Label>
             {exactProduct ? (
-              <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm">
-                {exactProduct.unit}
-              </div>
+              recipeUnitsForProduct(exactProduct).length === 1 ? (
+                <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm">
+                  {exactProduct.unit}
+                </div>
+              ) : (
+                <Select
+                  value={ingredientUnit}
+                  onValueChange={(value) => setIngredientUnit(value as Unit)}
+                >
+                  <SelectTrigger aria-label="Unidade do ingrediente">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recipeUnitsForProduct(exactProduct).map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {unit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )
             ) : (
               <Select
                 value={freeIngredientUnit}
@@ -348,6 +396,11 @@ function RecipeForm({
             </Button>
           </div>
         </div>
+        {exactProduct?.unit === "GR" && exactProduct.grams_per_unit !== null && (
+          <p className="text-xs text-muted-foreground">
+            Estoque em GR · 1 UN equivale a {exactProduct.grams_per_unit} GR.
+          </p>
+        )}
 
         {!products.length && !ingredientName.trim() && (
           <p className="text-xs text-muted-foreground">
@@ -357,32 +410,42 @@ function RecipeForm({
 
         {ingredients.length > 0 && (
           <ul className="divide-y rounded-lg border">
-            {ingredients.map((ingredient) => (
-              <li key={ingredient.key} className="flex items-center gap-3 p-3 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{ingredient.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {ingredient.productId ? "Do estoque" : "Não cadastrado no estoque"}
-                  </p>
-                </div>
-                <span className="shrink-0 font-mono">
-                  {formatQty(ingredient.quantity, ingredient.unit)}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remover ${ingredient.name}`}
-                  onClick={() =>
-                    setIngredients((current) =>
-                      current.filter((item) => item.key !== ingredient.key),
-                    )
-                  }
-                >
-                  <X aria-hidden="true" />
-                </Button>
-              </li>
-            ))}
+            {ingredients.map((ingredient) => {
+              const product = products.find((item) => item.id === ingredient.productId);
+              const stockEquivalent = stockGramsForIngredient(
+                ingredient.quantity,
+                ingredient.unit,
+                product,
+              );
+
+              return (
+                <li key={ingredient.key} className="flex items-center gap-3 p-3 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{ingredient.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ingredient.productId ? "Do estoque" : "Não cadastrado no estoque"}
+                      {stockEquivalent ? ` · ${stockEquivalent}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono">
+                    {formatQty(ingredient.quantity, ingredient.unit)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remover ${ingredient.name}`}
+                    onClick={() =>
+                      setIngredients((current) =>
+                        current.filter((item) => item.key !== ingredient.key),
+                      )
+                    }
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -549,22 +612,36 @@ export function RecipesPage({ email, userId }: { email: string; userId: string }
                     Ingredientes
                   </h3>
                   <ul className="space-y-2">
-                    {recipe.ingredients.map((ingredient) => (
-                      <li
-                        key={ingredient.id}
-                        className="flex items-center justify-between gap-3 text-sm"
-                      >
-                        <span className="min-w-0 truncate">
-                          {ingredient.name}
-                          {!ingredient.product_id && (
-                            <span className="ml-2 text-xs text-muted-foreground">livre</span>
-                          )}
-                        </span>
-                        <span className="shrink-0 font-mono text-muted-foreground">
-                          {formatQty(ingredient.quantity, ingredient.unit)}
-                        </span>
-                      </li>
-                    ))}
+                    {recipe.ingredients.map((ingredient) => {
+                      const product = inventoryProducts.data?.find(
+                        (item) => item.id === ingredient.product_id,
+                      );
+                      const stockEquivalent = stockGramsForIngredient(
+                        ingredient.quantity,
+                        ingredient.unit,
+                        product,
+                      );
+
+                      return (
+                        <li
+                          key={ingredient.id}
+                          className="flex items-center justify-between gap-3 text-sm"
+                        >
+                          <span className="min-w-0 truncate">
+                            {ingredient.name}
+                            {!ingredient.product_id && (
+                              <span className="ml-2 text-xs text-muted-foreground">livre</span>
+                            )}
+                          </span>
+                          <span className="shrink-0 text-right font-mono text-muted-foreground">
+                            {formatQty(ingredient.quantity, ingredient.unit)}
+                            {stockEquivalent && (
+                              <span className="block text-xs font-sans">{stockEquivalent}</span>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               </li>

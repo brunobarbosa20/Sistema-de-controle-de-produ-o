@@ -60,6 +60,7 @@ type Product = {
   name: string;
   notes: string;
   unit: Unit;
+  grams_per_unit: number | null;
   quantity: number;
   active: boolean;
   cancelled: boolean;
@@ -110,7 +111,9 @@ function useProducts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,code,name,notes,unit,quantity,active,cancelled,pending_registration")
+        .select(
+          "id,code,name,notes,unit,grams_per_unit,quantity,active,cancelled,pending_registration",
+        )
         .order("name");
       if (error) throw error;
       return data.map((p) => ({
@@ -664,6 +667,9 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
   const queryClient = useQueryClient();
   const [name, setName] = useState(product.name);
   const [notes, setNotes] = useState(product.notes);
+  const [gramsPerUnit, setGramsPerUnit] = useState(
+    product.grams_per_unit === null ? "" : formatQuantityInput(String(product.grams_per_unit)),
+  );
   const [busy, setBusy] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -672,11 +678,24 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
       toast.error("Informe a descrição do produto");
       return;
     }
+    let parsedGramsPerUnit: number | null = null;
+    if (gramsPerUnit.trim()) {
+      const value = validateQuantity(gramsPerUnit, "GR");
+      if (value.error || value.value === undefined || value.value > 2147483647) {
+        toast.error("Informe um peso inteiro em gramas por unidade");
+        return;
+      }
+      parsedGramsPerUnit = value.value;
+    }
 
     setBusy(true);
     const { data, error } = await supabase
       .from("products")
-      .update({ name: name.trim(), notes: notes.trim() })
+      .update({
+        name: name.trim(),
+        notes: notes.trim(),
+        grams_per_unit: parsedGramsPerUnit,
+      })
       .eq("id", product.id)
       .select("id")
       .single();
@@ -693,6 +712,7 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
 
     toast.success("Produto atualizado");
     await queryClient.invalidateQueries({ queryKey: ["products"] });
+    await queryClient.invalidateQueries({ queryKey: ["recipe-inventory-products"] });
     onDone();
   }
 
@@ -719,6 +739,22 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
           rows={4}
         />
       </div>
+      {product.unit === "GR" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="product-grams-per-unit">Peso de 1 unidade (opcional)</Label>
+          <Input
+            id="product-grams-per-unit"
+            inputMode="numeric"
+            placeholder="ex: 90"
+            value={gramsPerUnit}
+            onChange={(event) => setGramsPerUnit(formatQuantityInput(event.target.value))}
+          />
+          <p className="text-xs text-muted-foreground">
+            Informe quantos gramas há em uma unidade deste produto. Assim, ele pode ser usado como
+            UN nas receitas e continuar controlado em GR no estoque.
+          </p>
+        </div>
+      )}
       <Button type="submit" className="w-full" disabled={busy}>
         Salvar alterações
       </Button>
@@ -783,6 +819,9 @@ function ProductDetail({
         <DialogTitle>{product.name}</DialogTitle>
         <p className="text-sm text-muted-foreground">
           {product.code} · Unidade {product.unit}
+          {product.unit === "GR" && product.grams_per_unit !== null
+            ? ` · 1 UN = ${formatQty(product.grams_per_unit, "GR")}`
+            : ""}
         </p>
       </DialogHeader>
       <section className="rounded-xl border bg-card p-4">

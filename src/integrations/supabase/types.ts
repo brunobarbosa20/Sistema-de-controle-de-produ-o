@@ -60,6 +60,7 @@ export type Database = {
           created_by: string;
           created_by_email: string;
           code: string;
+          grams_per_unit: number | null;
           id: string;
           name: string;
           notes: string;
@@ -74,6 +75,7 @@ export type Database = {
           created_by?: string;
           created_by_email?: string;
           code?: string;
+          grams_per_unit?: number | null;
           id?: string;
           name: string;
           notes?: string;
@@ -88,6 +90,7 @@ export type Database = {
           created_by?: string;
           created_by_email?: string;
           code?: string;
+          grams_per_unit?: number | null;
           id?: string;
           name?: string;
           notes?: string;
