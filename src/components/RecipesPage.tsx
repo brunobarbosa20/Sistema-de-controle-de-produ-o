@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChefHat, LogOut, Pencil, Plus, Trash2, TriangleAlert, X } from "lucide-react";
+import { ChefHat, LogOut, Pencil, Plus, Trash2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,6 +180,9 @@ function RecipeForm({
         unit: product?.unit ?? freeIngredientUnit,
       },
     ]);
+    if (!product) {
+      toast.info("Este ingrediente não está cadastrado entre os itens ativos do estoque.");
+    }
     setIngredientName("");
     setIngredientQuantity("1");
   }
@@ -273,7 +276,7 @@ function RecipeForm({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem_auto] sm:items-start">
-          <div className="space-y-2">
+          <div className="relative space-y-2">
             <Label htmlFor="ingredient-name">Ingrediente</Label>
             <Input
               id="ingredient-name"
@@ -282,6 +285,24 @@ function RecipeForm({
               maxLength={120}
               placeholder="Digite para buscar no estoque"
             />
+            {ingredientName.trim() && !exactProduct && suggestions.length > 0 && (
+              <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-48 space-y-1 overflow-y-auto rounded-lg border bg-popover p-2 text-popover-foreground shadow-md">
+                <p className="px-2 text-xs text-muted-foreground">Produtos do estoque</p>
+                {suggestions.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => addSuggestedProduct(product)}
+                    className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                  >
+                    <span>{product.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {product.code} · {product.unit}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="ingredient-quantity">Quantidade</Label>
@@ -311,6 +332,7 @@ function RecipeForm({
                 <SelectContent>
                   <SelectItem value="UN">UN</SelectItem>
                   <SelectItem value="GR">GR</SelectItem>
+                  <SelectItem value="ML">ML</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -333,38 +355,6 @@ function RecipeForm({
           </p>
         )}
 
-        {ingredientName.trim() && suggestions.length > 0 && (
-          <div className="space-y-1 rounded-lg border bg-muted/30 p-2">
-            <p className="px-2 text-xs text-muted-foreground">Produtos do estoque</p>
-            {suggestions.map((product) => (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => addSuggestedProduct(product)}
-                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
-              >
-                <span>{product.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {product.code} · {product.unit}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {ingredientName.trim() && !exactProduct && (
-          <div
-            role="status"
-            className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning-foreground"
-          >
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <p>
-              Este ingrediente ainda não está cadastrado. Ao salvar a receita, ele será criado no
-              estoque como pré-cadastro, sem saldo, aguardando finalização na Home.
-            </p>
-          </div>
-        )}
-
         {ingredients.length > 0 && (
           <ul className="divide-y rounded-lg border">
             {ingredients.map((ingredient) => (
@@ -372,7 +362,7 @@ function RecipeForm({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{ingredient.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {ingredient.productId ? "Do estoque" : "Será criado como pré-cadastro"}
+                    {ingredient.productId ? "Do estoque" : "Não cadastrado no estoque"}
                   </p>
                 </div>
                 <span className="shrink-0 font-mono">

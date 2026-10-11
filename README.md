@@ -33,8 +33,9 @@ Requisitos: Node.js e npm.
    `0004_entry_only_prices.sql`, `0005_product_code.sql`,
    `0006_product_observations.sql`, `0007_recipes.sql`,
    `0008_cancelled_products.sql`, `0009_recipe_product_preregistration.sql` e
-   `0010_backfill_recipe_ingredients.sql`, nesta ordem. Se as migrações até
-   `0009` já estão ativas, aplique `0010_backfill_recipe_ingredients.sql`. A
+   `0010_backfill_recipe_ingredients.sql` e `0011_milliliter_unit.sql`, nesta
+   ordem. Se as migrações até `0010` já estão ativas, aplique
+   `0011_milliliter_unit.sql`. A
    migração `0001` configura o estoque compartilhado e promove
    `bruno@teste.com` como primeiro administrador.
    A migração `0003` converte os saldos e o histórico existentes de KG para GR,
@@ -53,6 +54,8 @@ Requisitos: Node.js e npm.
    administradores finalizam esses itens pela Home antes de movimentá-los.
    A migração `0010` associa ingredientes livres de receitas já existentes a
    produtos compatíveis ou cria os pré-cadastros pendentes correspondentes.
+   A migração `0011` habilita ML (mililitros) como unidade de estoque e de
+   ingredientes, com cálculo do custo por mililitro nas entradas.
 4. Inicie a aplicação:
 
    ```sh

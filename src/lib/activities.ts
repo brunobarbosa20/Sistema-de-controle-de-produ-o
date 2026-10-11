@@ -44,7 +44,7 @@ export type MovementActivityRecord = {
 };
 
 function toUnit(unit: string): Unit {
-  if (unit === "UN" || unit === "GR") return unit;
+  if (unit === "UN" || unit === "GR" || unit === "ML") return unit;
   throw new Error(`Unidade de produto inválida no histórico: ${unit}`);
 }
 

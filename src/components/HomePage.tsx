@@ -9,6 +9,7 @@ import {
   Check,
   ClipboardList,
   Plus,
+  TriangleAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,13 @@ type PendingProduct = {
   unit: string;
   created_at: string;
   created_by_email: string;
+};
+
+type ZeroStockProduct = {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
 };
 
 function useRecentActivities() {
@@ -75,6 +83,24 @@ function usePendingProducts() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as PendingProduct[];
+    },
+  });
+}
+
+function useZeroStockProducts() {
+  return useQuery({
+    queryKey: ["home-zero-stock-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id,code,name,unit")
+        .eq("active", true)
+        .eq("cancelled", false)
+        .eq("pending_registration", false)
+        .eq("quantity", 0)
+        .order("name");
+      if (error) throw error;
+      return data as ZeroStockProduct[];
     },
   });
 }
@@ -128,6 +154,7 @@ export function HomePage({
   const queryClient = useQueryClient();
   const activities = useRecentActivities();
   const pendingProducts = usePendingProducts();
+  const zeroStockProducts = useZeroStockProducts();
   const role = useHomeInventoryRole(userId);
   const recipes = useRecentRecipes();
   const [finalizingProductId, setFinalizingProductId] = useState<string | null>(null);
@@ -165,6 +192,57 @@ export function HomePage({
           Acompanhe as atividades recentes do estoque e das receitas.
         </p>
       </header>
+
+      {zeroStockProducts.isError ? (
+        <p
+          className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+          role="alert"
+        >
+          Não foi possível verificar os produtos sem saldo: {zeroStockProducts.error.message}
+        </p>
+      ) : (
+        (zeroStockProducts.data?.length ?? 0) > 0 && (
+          <section
+            className="mb-6 rounded-2xl border border-warning/40 bg-warning/10"
+            role="status"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-warning/30 p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-warning/20 text-warning-foreground">
+                  <TriangleAlert className="size-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <h2 className="font-display text-lg font-semibold">Itens ativos sem saldo</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {zeroStockProducts.data!.length}{" "}
+                    {zeroStockProducts.data!.length === 1 ? "item precisa" : "itens precisam"} de
+                    entrada no estoque.
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => onNavigate("estoque")}>
+                <ArrowDownToLine aria-hidden="true" />
+                Registrar entrada
+              </Button>
+            </div>
+            <ul className="divide-y divide-warning/30">
+              {zeroStockProducts.data!.map((product) => (
+                <li key={product.id} className="flex items-center justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {product.code} · {product.unit}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-medium text-warning-foreground">
+                    Saldo 0 {product.unit.toLowerCase()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      )}
 
       <section className="mb-6 rounded-2xl border bg-card">
         <div className="flex items-center gap-3 border-b p-5">
@@ -208,7 +286,7 @@ export function HomePage({
                       onClick={() => void finalizeProduct(product)}
                     >
                       <Check aria-hidden="true" />
-                      {finalizingProductId === product.id ? "Finalizando…" : "Finalizar cadastro"}
+                      {finalizingProductId === product.id ? "Entrando…" : "Entrar no estoque"}
                     </Button>
                   ) : role.isError ? (
                     <span role="alert" className="text-xs text-destructive">

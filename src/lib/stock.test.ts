@@ -22,6 +22,12 @@ describe("quantidades", () => {
     expect(validateQuantity("2,5", "UN").error).toBeDefined();
     expect(validateQuantity("3", "UN").value).toBe(3);
   });
+  it("aceita mililitros inteiros e os formata com a unidade ML", () => {
+    expect(validateQuantity("250", "ML").value).toBe(250);
+    expect(validateQuantity("2,5", "ML").error).toContain("mililitros");
+    expect(formatUnitPrice(0.04, "ML")).toBe("R$ 0,04 / ml");
+    expect(formatAverageUnitCost(0.04, "ML")).toBe("R$ 0,04000 / ml");
+  });
   it("rejeita zero e texto", () => {
     expect(validateQuantity("0", "GR").error).toBeDefined();
     expect(validateQuantity("abc", "GR").error).toBeDefined();

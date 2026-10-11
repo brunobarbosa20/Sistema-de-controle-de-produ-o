@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Controle seu estoque: cadastre produtos em UN ou GR, registre entradas e saídas e consulte o histórico.",
+          "Controle seu estoque: cadastre produtos em UN, GR ou ML, registre entradas e saídas e consulte o histórico.",
       },
       { property: "og:title", content: "Sistema de Controle de Produção" },
       {

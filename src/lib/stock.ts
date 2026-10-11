@@ -1,4 +1,4 @@
-export type Unit = "UN" | "GR";
+export type Unit = "UN" | "GR" | "ML";
 
 /** Aceita decimais locais e agrupamentos como "1.234" ou "1.234,56". */
 export function parseDecimal(input: string): number | null {
@@ -43,7 +43,7 @@ export function formatUnitPrice(price: number, unit: Unit): string {
       maximumFractionDigits: 6,
     })
     .replace(/\u00a0/g, " ");
-  return `${formatted} / ${unit === "GR" ? "gr" : "un"}`;
+  return `${formatted} / ${formatUnitLabel(unit)}`;
 }
 
 export function formatAverageUnitCost(price: number, unit: Unit): string {
@@ -55,7 +55,18 @@ export function formatAverageUnitCost(price: number, unit: Unit): string {
       maximumFractionDigits: 5,
     })
     .replace(/\u00a0/g, " ");
-  return `${formatted} / ${unit === "GR" ? "gr" : "un"}`;
+  return `${formatted} / ${formatUnitLabel(unit)}`;
+}
+
+export function formatUnitLabel(unit: Unit): string {
+  switch (unit) {
+    case "UN":
+      return "un";
+    case "GR":
+      return "gr";
+    case "ML":
+      return "ml";
+  }
 }
 
 export function calculateWeightedAverageUnitCost(
@@ -96,7 +107,7 @@ export function calculateInventoryValue(
   );
 }
 
-/** UN e GR representam unidades inteiras: peças ou gramas. */
+/** UN, GR e ML representam quantidades inteiras no estoque. */
 export function validateQuantity(input: string, unit: Unit): { value?: number; error?: string } {
   const n = parseDecimal(input);
   if (n === null || n <= 0) return { error: "Informe uma quantidade maior que zero" };
@@ -105,7 +116,9 @@ export function validateQuantity(input: string, unit: Unit): { value?: number; e
       error:
         unit === "UN"
           ? "Produtos em UN aceitam apenas números inteiros"
-          : "Produtos em GR aceitam apenas gramas inteiras",
+          : unit === "GR"
+            ? "Produtos em GR aceitam apenas gramas inteiras"
+            : "Produtos em ML aceitam apenas mililitros inteiros",
     };
   }
   return { value: n };

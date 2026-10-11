@@ -1053,7 +1053,7 @@ function ProductForm({ onDone }: { onDone: () => void }) {
         <Select
           value={unit}
           onValueChange={(value) => {
-            if (value === "UN" || value === "GR") setUnit(value);
+            if (value === "UN" || value === "GR" || value === "ML") setUnit(value);
           }}
         >
           <SelectTrigger>
@@ -1062,18 +1062,18 @@ function ProductForm({ onDone }: { onDone: () => void }) {
           <SelectContent>
             <SelectItem value="UN">UN (unidade)</SelectItem>
             <SelectItem value="GR">GR (gramas)</SelectItem>
+            <SelectItem value="ML">ML (mililitros)</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <p className="text-xs text-muted-foreground">
-        Cada produto usa uma unidade fixa. Cadastre itens por peça em UN ou ingredientes pesados em
-        gramas (GR).
+        Cada produto usa uma unidade fixa: UN para peças, GR para gramas e ML para mililitros.
       </p>
       <div className="space-y-1.5">
         <Label>Saldo inicial (opcional)</Label>
         <Input
           inputMode="decimal"
-          placeholder={unit === "GR" ? "ex: 500" : "ex: 10"}
+          placeholder={unit === "UN" ? "ex: 10" : "ex: 500"}
           value={initial}
           onChange={(e) => setInitial(formatQuantityInput(e.target.value))}
         />
@@ -1085,14 +1085,16 @@ function ProductForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-function CalculatedGramPrice({
+function CalculatedUnitPrice({
   quantity,
   packageTotal,
+  unit,
 }: {
   quantity: string;
   packageTotal: string;
+  unit: Unit;
 }) {
-  const parsedQuantity = validateQuantity(quantity, "GR");
+  const parsedQuantity = validateQuantity(quantity, unit);
   const parsedTotal = parseCurrencyInput(packageTotal);
   if (parsedQuantity.value === undefined || parsedTotal === null) return null;
 
@@ -1100,7 +1102,7 @@ function CalculatedGramPrice({
     <p className="text-sm text-muted-foreground">
       Custo calculado:{" "}
       <span className="font-medium text-foreground">
-        {formatUnitPrice(calculateUnitPrice(parsedTotal, parsedQuantity.value), "GR")}
+        {formatUnitPrice(calculateUnitPrice(parsedTotal, parsedQuantity.value), unit)}
       </span>
     </p>
   );
@@ -1145,13 +1147,13 @@ function MovementForm({
       const parsedPrice = parseCurrencyInput(price);
       if (parsedPrice === null) {
         toast.error(
-          product.unit === "GR"
+          product.unit !== "UN"
             ? "Informe o valor total do pacote"
             : "Informe um valor válido para a entrada",
         );
         return;
       }
-      entryPrice = product.unit === "GR" ? calculateUnitPrice(parsedPrice, v.value!) : parsedPrice;
+      entryPrice = product.unit !== "UN" ? calculateUnitPrice(parsedPrice, v.value!) : parsedPrice;
     }
     setBusy(true);
     const { error } = await supabase.from("movements").insert({
@@ -1206,7 +1208,7 @@ function MovementForm({
               <Label>Quantidade {product ? `(${product.unit})` : ""}</Label>
               <Input
                 inputMode="decimal"
-                placeholder={product?.unit === "GR" ? "ex: 500" : "ex: 1"}
+                placeholder={product?.unit === "UN" ? "ex: 1" : "ex: 500"}
                 value={qty}
                 onChange={(e) => setQty(formatQuantityInput(e.target.value))}
               />
@@ -1214,11 +1216,11 @@ function MovementForm({
             {type === "entrada" && (
               <div className="space-y-1.5">
                 <Label>
-                  {product?.unit === "GR" ? "Valor total do pacote (R$)" : "Valor por unidade (R$)"}
+                  {product?.unit === "UN" ? "Valor por unidade (R$)" : "Valor total do pacote (R$)"}
                 </Label>
                 <Input
                   inputMode="decimal"
-                  placeholder={product?.unit === "GR" ? "ex: 10,00" : "ex: 5,00"}
+                  placeholder={product?.unit === "UN" ? "ex: 5,00" : "ex: 10,00"}
                   value={price}
                   onChange={(event) => {
                     const input = event.currentTarget;
@@ -1232,8 +1234,8 @@ function MovementForm({
               </div>
             )}
           </div>
-          {type === "entrada" && product?.unit === "GR" && (
-            <CalculatedGramPrice quantity={qty} packageTotal={price} />
+          {type === "entrada" && product && product.unit !== "UN" && (
+            <CalculatedUnitPrice quantity={qty} packageTotal={price} unit={product.unit} />
           )}
           <div className="space-y-1.5">
             <Label>Observação</Label>
