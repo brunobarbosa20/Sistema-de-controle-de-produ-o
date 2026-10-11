@@ -6,6 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Boxes } from "lucide-react";
 
+function getAuthRedirectUrl() {
+  return new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+}
+
 export function AuthCard() {
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
@@ -21,7 +25,7 @@ export function AuthCard() {
         : await supabase.auth.signUp({
             email,
             password,
-            options: { emailRedirectTo: window.location.origin },
+            options: { emailRedirectTo: getAuthRedirectUrl() },
           });
     setBusy(false);
     if (error) {
@@ -35,7 +39,7 @@ export function AuthCard() {
   async function google() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: getAuthRedirectUrl() },
     });
     if (error) toast.error(error.message);
   }

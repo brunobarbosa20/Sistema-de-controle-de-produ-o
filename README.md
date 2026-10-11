@@ -50,6 +50,29 @@ Para entrar com Google, habilite o provedor Google na autenticação do Supabase
 configure as URLs de redirecionamento do projeto. O acesso por e-mail e senha
 não depende dessa configuração.
 
+## Publicação no GitHub Pages
+
+O workflow `.github/workflows/deploy-pages.yml` publica a aplicação ao enviar
+alterações para a branch `main` ou ao executá-lo manualmente em **Actions**.
+Antes da primeira publicação:
+
+1. Em **Settings > Pages**, escolha **GitHub Actions** como fonte de publicação.
+2. Em **Settings > Secrets and variables > Actions > Variables**, crie
+   `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` com os valores do
+   projeto Supabase.
+3. Execute o workflow **Deploy to GitHub Pages** em **Actions** ou envie um
+   commit para `main`.
+4. Copie a URL do site exibida na execução do workflow e configure-a como
+   **Site URL** e URL de redirecionamento permitida em **Authentication > URL
+   Configuration** no Supabase. Inclua a URL da página com o caminho do
+   repositório na lista de redirecionamentos.
+
+A chave `VITE_SUPABASE_PUBLISHABLE_KEY` é pública e fica incluída no JavaScript
+do navegador; a segurança dos dados depende das políticas RLS do Supabase.
+Nunca coloque `SUPABASE_SERVICE_ROLE_KEY` nas variáveis do GitHub Pages.
+O GitHub Pages hospeda apenas arquivos estáticos; as operações de dados e
+autenticação deste app são feitas diretamente pelo cliente Supabase.
+
 ## Comandos
 
 - `npm run dev`: servidor de desenvolvimento
