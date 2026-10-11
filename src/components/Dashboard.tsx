@@ -431,7 +431,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
               )}
             </div>
           ) : (
-            <ul className="max-h-[80vh] divide-y overflow-y-auto overscroll-contain rounded-2xl border bg-card">
+            <ul className="max-h-[85vh] divide-y overflow-y-auto overscroll-contain rounded-2xl border bg-card">
               {list.map((p) => {
                 const averageCost = inventoryCosts.data?.[p.id];
                 return (
