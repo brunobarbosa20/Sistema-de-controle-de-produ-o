@@ -304,29 +304,29 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
         </p>
       )}
 
-      <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border bg-card p-5">
+      <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border bg-card p-3 sm:p-4">
           <p className="text-sm text-muted-foreground">Produtos</p>
-          <p className="mt-1 font-display text-3xl font-bold">
+          <p className="mt-1 font-display text-2xl font-bold">
             {products.data ? activeProducts.length : "–"}
           </p>
         </div>
-        <div className="rounded-2xl border bg-card p-5">
+        <div className="rounded-2xl border bg-card p-3 sm:p-4">
           <p className="text-sm text-muted-foreground">Sem saldo</p>
-          <p className="mt-1 font-display text-3xl font-bold text-destructive">
+          <p className="mt-1 font-display text-2xl font-bold text-destructive">
             {products.data ? zero : "–"}
           </p>
         </div>
-        <div className="col-span-2 rounded-2xl border bg-card p-5 md:col-span-1">
+        <div className="col-span-2 rounded-2xl border bg-card p-3 sm:p-4 md:col-span-1">
           <p className="text-sm text-muted-foreground">Valor em estoque</p>
           {products.isLoading || inventoryCosts.isLoading ? (
-            <p className="mt-1 font-display text-3xl font-bold">…</p>
+            <p className="mt-1 font-display text-2xl font-bold">…</p>
           ) : products.isError || inventoryCosts.isError ? (
             <p className="mt-1 text-sm text-destructive">Não foi possível calcular.</p>
           ) : (
             <>
-              <p className="mt-1 font-display text-3xl font-bold">{brl(inventoryValue.total)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 font-display text-2xl font-bold">{brl(inventoryValue.total)}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 Custo médio ponderado
                 {inventoryValue.unpricedItems > 0
                   ? ` · ${inventoryValue.unpricedItems} ${inventoryValue.unpricedItems === 1 ? "item sem custo" : "itens sem custo"}`
