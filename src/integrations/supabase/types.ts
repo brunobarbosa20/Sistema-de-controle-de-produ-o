@@ -55,6 +55,7 @@ export type Database = {
       products: {
         Row: {
           active: boolean;
+          cancelled: boolean;
           created_at: string;
           created_by: string;
           created_by_email: string;
@@ -62,11 +63,13 @@ export type Database = {
           id: string;
           name: string;
           notes: string;
+          pending_registration: boolean;
           quantity: number;
           unit: string;
         };
         Insert: {
           active?: boolean;
+          cancelled?: boolean;
           created_at?: string;
           created_by?: string;
           created_by_email?: string;
@@ -74,11 +77,13 @@ export type Database = {
           id?: string;
           name: string;
           notes?: string;
+          pending_registration?: boolean;
           quantity?: number;
           unit?: string;
         };
         Update: {
           active?: boolean;
+          cancelled?: boolean;
           created_at?: string;
           created_by?: string;
           created_by_email?: string;
@@ -86,6 +91,7 @@ export type Database = {
           id?: string;
           name?: string;
           notes?: string;
+          pending_registration?: boolean;
           quantity?: number;
           unit?: string;
         };
@@ -112,6 +118,81 @@ export type Database = {
         };
         Relationships: [];
       };
+      recipes: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          created_by_email: string;
+          id: string;
+          name: string;
+          portions: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string;
+          created_by_email?: string;
+          id?: string;
+          name: string;
+          portions: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          created_by_email?: string;
+          id?: string;
+          name?: string;
+          portions?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      recipe_ingredients: {
+        Row: {
+          id: string;
+          name: string;
+          position: number;
+          product_id: string | null;
+          quantity: number;
+          recipe_id: string;
+          unit: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          position?: number;
+          product_id?: string | null;
+          quantity: number;
+          recipe_id: string;
+          unit: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          position?: number;
+          product_id?: string | null;
+          quantity?: number;
+          recipe_id?: string;
+          unit?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "recipe_ingredients_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "recipe_ingredients_recipe_id_fkey";
+            columns: ["recipe_id"];
+            isOneToOne: false;
+            referencedRelation: "recipes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -137,6 +218,23 @@ export type Database = {
       set_product_active: {
         Args: { p_active: boolean; p_product_id: string };
         Returns: undefined;
+      };
+      set_product_cancelled: {
+        Args: { p_cancelled: boolean; p_product_id: string };
+        Returns: undefined;
+      };
+      finalize_inventory_product: {
+        Args: { p_product_id: string };
+        Returns: undefined;
+      };
+      save_recipe: {
+        Args: {
+          p_ingredients: Json;
+          p_name: string;
+          p_portions: number;
+          p_recipe_id: string | null;
+        };
+        Returns: string;
       };
     };
     Enums: {

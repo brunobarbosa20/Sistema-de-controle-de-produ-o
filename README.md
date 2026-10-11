@@ -30,9 +30,11 @@ Requisitos: Node.js e npm.
 3. No Supabase, aplique as migrações SQL em ordem. Em uma instalação nova,
    aplique `0000_migration.sql`, `0001_shared_inventory.sql`,
    `0002_product_archive.sql`, `0003_grams_unit.sql`,
-   `0004_entry_only_prices.sql`, `0005_product_code.sql` e
-   `0006_product_observations.sql`, nesta ordem. Se as migrações anteriores já
-   estão ativas, aplique somente `0006_product_observations.sql`. A
+   `0004_entry_only_prices.sql`, `0005_product_code.sql`,
+   `0006_product_observations.sql`, `0007_recipes.sql`,
+   `0008_cancelled_products.sql`, `0009_recipe_product_preregistration.sql` e
+   `0010_backfill_recipe_ingredients.sql`, nesta ordem. Se as migrações até
+   `0009` já estão ativas, aplique `0010_backfill_recipe_ingredients.sql`. A
    migração `0001` configura o estoque compartilhado e promove
    `bruno@teste.com` como primeiro administrador.
    A migração `0003` converte os saldos e o histórico existentes de KG para GR,
@@ -40,6 +42,17 @@ Requisitos: Node.js e npm.
    A migração `0005` atribui códigos únicos no formato `MP00000001` aos produtos
    existentes e novos.
    A migração `0006` adiciona observações aos itens e à função de cadastro.
+   A migração `0007` cria receitas compartilhadas e ingredientes com controle de
+   acesso: usuários autenticados podem consultar e criar receitas; somente o
+   criador pode editar ou excluir.
+   A migração `0008` adiciona a aba de produtos cancelados. O saldo original é
+   preservado como histórico, mas os produtos cancelados ficam fora das listas e
+   contagens normais e não aceitam novas movimentações.
+   A migração `0009` cria pré-cadastros para ingredientes ainda inexistentes ao
+   salvar receitas, atribui o código MP e mantém o saldo zerado. Operadores e
+   administradores finalizam esses itens pela Home antes de movimentá-los.
+   A migração `0010` associa ingredientes livres de receitas já existentes a
+   produtos compatíveis ou cria os pré-cadastros pendentes correspondentes.
 4. Inicie a aplicação:
 
    ```sh
@@ -103,3 +116,12 @@ inicial são gravados em uma única operação no banco.
 Para preservar o histórico, produtos não são apagados: operadores e
 administradores podem inativar produtos com saldo zero, consultar itens inativos
 e reativá-los. Novas movimentações só podem ser feitas em produtos ativos.
+
+## Receitas
+
+Receitas são compartilhadas entre usuários autenticados. Qualquer usuário
+autenticado pode cadastrar uma receita; somente o criador pode editá-la ou
+excluí-la. Cada receita registra nome, rendimento em porções e ingredientes com
+quantidade inteira em UN ou GR. Ingredientes podem ser vinculados a produtos
+ativos do estoque ou salvos como ingredientes livres; salvar ou editar uma
+receita não altera o saldo do estoque.

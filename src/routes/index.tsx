@@ -4,7 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthCard } from "@/components/AuthCard";
+import { AppNavigation, type AppSection } from "@/components/AppNavigation";
 import { Dashboard } from "@/components/Dashboard";
+import { HomePage } from "@/components/HomePage";
+import { RecipesPage } from "@/components/RecipesPage";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -31,6 +34,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   const qc = useQueryClient();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [activeSection, setActiveSection] = useState<AppSection>("home");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -43,5 +47,20 @@ function Index() {
 
   if (session === undefined) return <div className="min-h-screen" />;
   if (!session) return <AuthCard />;
-  return <Dashboard email={session.user.email ?? ""} userId={session.user.id} />;
+  return (
+    <div className="min-h-screen md:pl-64">
+      <AppNavigation activeSection={activeSection} onNavigate={setActiveSection} />
+      {activeSection === "home" ? (
+        <HomePage
+          email={session.user.email ?? ""}
+          userId={session.user.id}
+          onNavigate={setActiveSection}
+        />
+      ) : activeSection === "estoque" ? (
+        <Dashboard email={session.user.email ?? ""} userId={session.user.id} />
+      ) : (
+        <RecipesPage email={session.user.email ?? ""} userId={session.user.id} />
+      )}
+    </div>
+  );
 }

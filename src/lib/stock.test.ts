@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateUnitPrice,
+  calculateInventoryValue,
   calculateWeightedAverageUnitCost,
   formatAverageUnitCost,
   formatCurrencyInput,
@@ -71,5 +72,15 @@ describe("quantidades", () => {
         { type: "entrada", quantity: 500, unit_price: 0, note: "Saldo inicial" },
       ]),
     ).toBeNull();
+  });
+  it("calcula o valor em estoque pelo custo médio e conta itens sem custo", () => {
+    expect(
+      calculateInventoryValue([
+        { quantity: 10, averageUnitCost: 2.5 },
+        { quantity: 500, averageUnitCost: 0.02 },
+        { quantity: 4, averageUnitCost: null },
+        { quantity: 0, averageUnitCost: null },
+      ]),
+    ).toEqual({ total: 35, unpricedItems: 1 });
   });
 });

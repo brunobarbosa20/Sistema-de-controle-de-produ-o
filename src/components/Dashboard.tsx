@@ -5,6 +5,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Archive,
+  Ban,
   Boxes,
   History,
   LogOut,
@@ -40,6 +41,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   brl,
+  calculateInventoryValue,
   calculateUnitPrice,
   calculateWeightedAverageUnitCost,
   formatAverageUnitCost,
@@ -60,6 +62,8 @@ type Product = {
   unit: Unit;
   quantity: number;
   active: boolean;
+  cancelled: boolean;
+  pending_registration: boolean;
 };
 type InventoryRole = "admin" | "operator" | "viewer";
 type InventoryMember = { user_id: string; email: string; role: InventoryRole; created_at: string };
@@ -106,7 +110,7 @@ function useProducts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,code,name,notes,unit,quantity,active")
+        .select("id,code,name,notes,unit,quantity,active,cancelled,pending_registration")
         .order("name");
       if (error) throw error;
       return data.map((p) => ({
@@ -134,6 +138,52 @@ function useMovements() {
   });
 }
 
+function useInventoryCosts(products: Product[]) {
+  return useQuery({
+    queryKey: ["inventory-costs", products.map((product) => product.id).sort()],
+    queryFn: async () => {
+      const pageSize = 500;
+      const costsByProduct = new Map<
+        string,
+        Array<{ type: string; quantity: number; unit_price: number; note: string | null }>
+      >();
+      let offset = 0;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from("movements")
+          .select("product_id,type,quantity,unit_price,note")
+          .eq("type", "entrada")
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+
+        for (const movement of data) {
+          const entries = costsByProduct.get(movement.product_id) ?? [];
+          entries.push({
+            type: movement.type,
+            quantity: Number(movement.quantity),
+            unit_price: Number(movement.unit_price),
+            note: movement.note,
+          });
+          costsByProduct.set(movement.product_id, entries);
+        }
+
+        if (data.length < pageSize) break;
+        offset += pageSize;
+      }
+
+      return Object.fromEntries(
+        products.map((product) => [
+          product.id,
+          calculateWeightedAverageUnitCost(costsByProduct.get(product.id) ?? []),
+        ]),
+      ) as Record<string, number | null>;
+    },
+  });
+}
+
 export function Dashboard({ email, userId }: { email: string; userId: string }) {
   const queryClient = useQueryClient();
   const products = useProducts();
@@ -144,23 +194,42 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
   >(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [productToDeactivate, setProductToDeactivate] = useState<Product | null>(null);
-  const [showInactiveProducts, setShowInactiveProducts] = useState(false);
+  const [productList, setProductList] = useState<"active" | "inactive" | "pending" | "cancelled">(
+    "active",
+  );
+  const [productToCancel, setProductToCancel] = useState<{
+    product: Product;
+    cancelled: boolean;
+  } | null>(null);
   const [preset, setPreset] = useState<string | undefined>();
   const [q, setQ] = useState("");
 
-  const activeProducts = (products.data ?? []).filter((product) => product.active);
+  const activeProducts = (products.data ?? []).filter(
+    (product) => product.active && !product.cancelled && !product.pending_registration,
+  );
+  const inventoryCosts = useInventoryCosts(activeProducts);
   const list = (products.data ?? []).filter(
     (product) =>
-      product.active !== showInactiveProducts &&
+      (productList === "cancelled"
+        ? product.cancelled
+        : productList === "pending"
+          ? product.pending_registration && !product.cancelled
+          : !product.cancelled &&
+            !product.pending_registration &&
+            product.active === (productList === "active")) &&
       (product.name.toLowerCase().includes(q.toLowerCase()) ||
         product.code.toLowerCase().includes(q.toLowerCase())),
   );
   const zero = activeProducts.filter((product) => product.quantity === 0).length;
+  const inventoryValue = calculateInventoryValue(
+    activeProducts.map((product) => ({
+      quantity: product.quantity,
+      averageUnitCost: inventoryCosts.data?.[product.id] ?? null,
+    })),
+  );
   const role = membership.data;
   const canOperate = role === "admin" || role === "operator";
-  const selectedProduct = (products.data ?? []).find(
-    (product) => product.id === selectedProductId,
-  );
+  const selectedProduct = (products.data ?? []).find((product) => product.id === selectedProductId);
 
   const open = (d: "entrada" | "saida", id?: string) => {
     setPreset(id);
@@ -183,6 +252,20 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
     }
     toast.success(active ? "Produto reativado" : "Produto inativado");
     setProductToDeactivate(null);
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
+  }
+
+  async function changeProductCancellation(product: Product, cancelled: boolean) {
+    const { error } = await supabase.rpc("set_product_cancelled", {
+      p_product_id: product.id,
+      p_cancelled: cancelled,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(cancelled ? "Produto movido para Cancelados" : "Produto restaurado");
+    setProductToCancel(null);
     await queryClient.invalidateQueries({ queryKey: ["products"] });
   }
 
@@ -218,7 +301,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
         </p>
       )}
 
-      <section className="mb-6 grid grid-cols-2 gap-3">
+      <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
         <div className="rounded-2xl border bg-card p-5">
           <p className="text-sm text-muted-foreground">Produtos</p>
           <p className="mt-1 font-display text-3xl font-bold">
@@ -231,9 +314,27 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
             {products.data ? zero : "–"}
           </p>
         </div>
+        <div className="col-span-2 rounded-2xl border bg-card p-5 md:col-span-1">
+          <p className="text-sm text-muted-foreground">Valor em estoque</p>
+          {products.isLoading || inventoryCosts.isLoading ? (
+            <p className="mt-1 font-display text-3xl font-bold">…</p>
+          ) : products.isError || inventoryCosts.isError ? (
+            <p className="mt-1 text-sm text-destructive">Não foi possível calcular.</p>
+          ) : (
+            <>
+              <p className="mt-1 font-display text-3xl font-bold">{brl(inventoryValue.total)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Custo médio ponderado
+                {inventoryValue.unpricedItems > 0
+                  ? ` · ${inventoryValue.unpricedItems} ${inventoryValue.unpricedItems === 1 ? "item sem custo" : "itens sem custo"}`
+                  : ""}
+              </p>
+            </>
+          )}
+        </div>
       </section>
 
-      {canOperate && !showInactiveProducts && (
+      {canOperate && productList === "active" && (
         <div className="mb-6 hidden gap-2 sm:flex">
           <Button onClick={() => setDialog("product")}>
             <Plus /> Novo produto
@@ -268,19 +369,31 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
         <TabsContent value="saldo">
           <div className="mb-3 flex gap-2">
             <Button
-              variant={showInactiveProducts ? "outline" : "secondary"}
-              onClick={() => setShowInactiveProducts(false)}
+              variant={productList === "active" ? "secondary" : "outline"}
+              onClick={() => setProductList("active")}
             >
               Ativos
             </Button>
             <Button
-              variant={showInactiveProducts ? "secondary" : "outline"}
-              onClick={() => setShowInactiveProducts(true)}
+              variant={productList === "inactive" ? "secondary" : "outline"}
+              onClick={() => setProductList("inactive")}
             >
               Inativos
             </Button>
+            <Button
+              variant={productList === "pending" ? "secondary" : "outline"}
+              onClick={() => setProductList("pending")}
+            >
+              Pré-cadastro
+            </Button>
+            <Button
+              variant={productList === "cancelled" ? "secondary" : "outline"}
+              onClick={() => setProductList("cancelled")}
+            >
+              Cancelados
+            </Button>
           </div>
-          {canOperate && !showInactiveProducts && (
+          {canOperate && productList === "active" && (
             <p className="mb-3 text-xs text-muted-foreground">
               Para inativar um produto, primeiro registre saídas até zerar o saldo. O histórico será
               preservado.
@@ -300,9 +413,15 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
           ) : list.length === 0 ? (
             <div className="rounded-2xl border border-dashed p-10 text-center">
               <p className="text-muted-foreground">
-                {showInactiveProducts ? "Nenhum produto inativo." : "Nenhum produto ainda."}
+                {productList === "cancelled"
+                  ? "Nenhum produto cancelado."
+                  : productList === "inactive"
+                    ? "Nenhum produto inativo."
+                    : productList === "pending"
+                      ? "Nenhum produto aguardando finalização."
+                      : "Nenhum produto ainda."}
               </p>
-              {canOperate && !showInactiveProducts && (
+              {canOperate && productList === "active" && (
                 <Button className="mt-4" onClick={() => setDialog("product")}>
                   <Plus /> Cadastrar produto
                 </Button>
@@ -310,31 +429,60 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
             </div>
           ) : (
             <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
-              {list.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center gap-3 p-4">
-                  <button
-                    type="button"
-                    className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
-                    onClick={() => openProduct(p.id)}
-                    aria-label={`Detalhes de ${p.name}, saldo ${formatQty(p.quantity, p.unit)}`}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{p.name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {p.code} · {p.unit.toLowerCase()}
+              {list.map((p) => {
+                const averageCost = inventoryCosts.data?.[p.id];
+                return (
+                  <li key={p.id} className="flex flex-wrap items-center gap-3 p-4">
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+                      onClick={() => openProduct(p.id)}
+                      aria-label={`Detalhes de ${p.name}, saldo ${formatQty(p.quantity, p.unit)}`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{p.name}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {p.code} · {p.unit.toLowerCase()}
+                          {p.pending_registration ? " · pré-cadastro" : ""}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className="block text-xs text-muted-foreground">Saldo atual</span>
-                      <span
-                        className={`font-mono text-base ${p.quantity === 0 ? "text-destructive" : ""}`}
+                      <span className="shrink-0 text-right">
+                        <span className="block text-xs text-muted-foreground">Saldo atual</span>
+                        <span
+                          className={`font-mono text-base ${p.quantity === 0 ? "text-destructive" : ""}`}
+                        >
+                          {formatQty(p.quantity, p.unit)}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          Valor:{" "}
+                          {p.quantity === 0
+                            ? brl(0)
+                            : inventoryCosts.isError
+                              ? "Indisponível"
+                              : inventoryCosts.isLoading
+                                ? "Calculando…"
+                                : averageCost == null
+                                  ? "Sem custo"
+                                  : brl(p.quantity * averageCost)}
+                        </span>
+                      </span>
+                    </button>
+                    {canOperate && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label={`${p.cancelled ? "Restaurar" : "Cancelar"} ${p.name}`}
+                        onClick={() => setProductToCancel({ product: p, cancelled: !p.cancelled })}
                       >
-                        {formatQty(p.quantity, p.unit)}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
+                        {p.cancelled ? <RotateCcw /> : <Ban />}
+                        <span className="hidden sm:inline">
+                          {p.cancelled ? "Restaurar" : "Cancelar"}
+                        </span>
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </TabsContent>
@@ -424,9 +572,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
       >
         <DialogContent
           className={
-            dialog === "product-detail"
-              ? "max-h-[90vh] max-w-2xl overflow-y-auto"
-              : "max-w-md"
+            dialog === "product-detail" ? "max-h-[90vh] max-w-2xl overflow-y-auto" : "max-w-md"
           }
         >
           {dialog === "product" && <ProductForm onDone={() => setDialog(null)} />}
@@ -442,10 +588,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
             />
           )}
           {dialog === "edit-product" && selectedProduct && (
-            <EditProductForm
-              product={selectedProduct}
-              onDone={() => setDialog("product-detail")}
-            />
+            <EditProductForm product={selectedProduct} onDone={() => setDialog("product-detail")} />
           )}
           {(dialog === "entrada" || dialog === "saida") && (
             <MovementForm
@@ -477,6 +620,38 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
               }}
             >
               Inativar produto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={productToCancel !== null}
+        onOpenChange={(open) => !open && setProductToCancel(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {productToCancel?.cancelled ? "Restaurar produto?" : "Cancelar produto?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {productToCancel?.cancelled
+                ? `${productToCancel.product.name} voltará à lista de ${productToCancel.product.active ? "ativos" : "inativos"}. O saldo e o histórico serão preservados.`
+                : `${productToCancel?.product.name} sairá das listas e totais de estoque. O saldo atual e o histórico serão preservados como dados fantasmas, sem novas movimentações.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (productToCancel) {
+                  void changeProductCancellation(
+                    productToCancel.product,
+                    productToCancel.cancelled,
+                  );
+                }
+              }}
+            >
+              {productToCancel?.cancelled ? "Restaurar produto" : "Cancelar produto"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -590,6 +765,7 @@ function ProductDetail({
       }
     },
   });
+  const historyItems = history.data ?? [];
   const averageUnitCost = history.data
     ? calculateWeightedAverageUnitCost(
         history.data.map((movement) => ({
@@ -619,11 +795,11 @@ function ProductDetail({
           {history.isLoading ? (
             <p className="mt-1 text-sm text-muted-foreground">Calculando…</p>
           ) : history.isError ? (
-            <p className="mt-1 text-sm text-destructive">Indisponível: erro ao carregar entradas.</p>
-          ) : averageUnitCost === null ? (
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sem entradas com custo registrado.
+            <p className="mt-1 text-sm text-destructive">
+              Indisponível: erro ao carregar entradas.
             </p>
+          ) : averageUnitCost === null ? (
+            <p className="mt-1 text-sm text-muted-foreground">Sem entradas com custo registrado.</p>
           ) : (
             <p className="mt-1 font-medium">
               {formatAverageUnitCost(averageUnitCost, product.unit)}
@@ -637,9 +813,14 @@ function ProductDetail({
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">{product.notes}</p>
         </section>
       )}
-      {canOperate && (
+      {canOperate && !product.cancelled && (
         <div className="flex flex-wrap gap-2">
-          {product.active ? (
+          {product.pending_registration ? (
+            <p className="w-full rounded-lg bg-warning/10 p-3 text-sm text-warning-foreground">
+              Este item aguarda finalização na Home. Não é possível registrar movimentações antes
+              disso.
+            </p>
+          ) : product.active ? (
             <>
               <Button variant="entrada" onClick={onEntry}>
                 <ArrowDownToLine /> Entrada
@@ -656,7 +837,7 @@ function ProductDetail({
           <Button variant="outline" onClick={onEdit}>
             <Pencil /> Editar item
           </Button>
-          {product.active && (
+          {product.active && !product.pending_registration && (
             <Button
               variant="outline"
               title={product.quantity === 0 ? "Inativar produto" : "Zere o saldo antes de inativar"}
@@ -671,21 +852,19 @@ function ProductDetail({
       <section className="space-y-3">
         <h3 className="font-semibold">Histórico completo</h3>
         {history.isLoading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            Carregando histórico…
-          </p>
+          <p className="py-6 text-center text-sm text-muted-foreground">Carregando histórico…</p>
         ) : history.isError ? (
           <p role="alert" className="py-6 text-center text-sm text-destructive">
             Não foi possível carregar o histórico: {history.error.message}
           </p>
-        ) : history.data.length === 0 ? (
+        ) : historyItems.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Nenhuma movimentação registrada para este item.
           </p>
         ) : (
           <ul className="divide-y overflow-hidden rounded-xl border">
-            {history.data.map((movement) => (
-              <li key={movement.id} className="flex items-center gap-3 p-3">
+            {historyItems.map((movement) => (
+              <li key={movement.id} className="flex items-start gap-3 p-3">
                 <div
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${movement.type === "entrada" ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground"}`}
                 >
@@ -696,10 +875,8 @@ function ProductDetail({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">
-                    {movement.type === "entrada" ? "Entrada" : "Saída"}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="font-medium">{movement.type === "entrada" ? "Entrada" : "Saída"}</p>
+                  <p className="whitespace-normal break-words text-xs text-muted-foreground">
                     {new Date(movement.created_at).toLocaleString("pt-BR", {
                       dateStyle: "short",
                       timeStyle: "short",
@@ -974,8 +1151,7 @@ function MovementForm({
         );
         return;
       }
-      entryPrice =
-        product.unit === "GR" ? calculateUnitPrice(parsedPrice, v.value!) : parsedPrice;
+      entryPrice = product.unit === "GR" ? calculateUnitPrice(parsedPrice, v.value!) : parsedPrice;
     }
     setBusy(true);
     const { error } = await supabase.from("movements").insert({

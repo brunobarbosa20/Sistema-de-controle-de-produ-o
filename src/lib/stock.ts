@@ -35,12 +35,14 @@ export function calculateUnitPrice(totalPrice: number, quantity: number): number
 }
 
 export function formatUnitPrice(price: number, unit: Unit): string {
-  const formatted = price.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
-  }).replace(/\u00a0/g, " ");
+  const formatted = price
+    .toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
+    })
+    .replace(/\u00a0/g, " ");
   return `${formatted} / ${unit === "GR" ? "gr" : "un"}`;
 }
 
@@ -75,6 +77,23 @@ export function calculateWeightedAverageUnitCost(
     0,
   );
   return totalCost / totalQuantity;
+}
+
+export function calculateInventoryValue(
+  products: ReadonlyArray<{ quantity: number; averageUnitCost: number | null }>,
+): { total: number; unpricedItems: number } {
+  return products.reduce(
+    (result, product) => {
+      if (product.quantity === 0) return result;
+      if (product.averageUnitCost === null) {
+        result.unpricedItems += 1;
+        return result;
+      }
+      result.total += product.quantity * product.averageUnitCost;
+      return result;
+    },
+    { total: 0, unpricedItems: 0 },
+  );
 }
 
 /** UN e GR representam unidades inteiras: peças ou gramas. */
