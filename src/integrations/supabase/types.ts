@@ -55,46 +55,73 @@ export type Database = {
       products: {
         Row: {
           active: boolean;
+<<<<<<< HEAD
           cancelled: boolean;
+=======
+>>>>>>> 2a4d539 (primeiro git)
           created_at: string;
           created_by: string;
           created_by_email: string;
           code: string;
+<<<<<<< HEAD
           grams_per_unit: number | null;
           id: string;
           name: string;
           notes: string;
           pending_registration: boolean;
+=======
+          id: string;
+          name: string;
+          notes: string;
+>>>>>>> 2a4d539 (primeiro git)
           quantity: number;
           unit: string;
         };
         Insert: {
           active?: boolean;
+<<<<<<< HEAD
           cancelled?: boolean;
+=======
+>>>>>>> 2a4d539 (primeiro git)
           created_at?: string;
           created_by?: string;
           created_by_email?: string;
           code?: string;
+<<<<<<< HEAD
           grams_per_unit?: number | null;
           id?: string;
           name: string;
           notes?: string;
           pending_registration?: boolean;
+=======
+          id?: string;
+          name: string;
+          notes?: string;
+>>>>>>> 2a4d539 (primeiro git)
           quantity?: number;
           unit?: string;
         };
         Update: {
           active?: boolean;
+<<<<<<< HEAD
           cancelled?: boolean;
+=======
+>>>>>>> 2a4d539 (primeiro git)
           created_at?: string;
           created_by?: string;
           created_by_email?: string;
           code?: string;
+<<<<<<< HEAD
           grams_per_unit?: number | null;
           id?: string;
           name?: string;
           notes?: string;
           pending_registration?: boolean;
+=======
+          id?: string;
+          name?: string;
+          notes?: string;
+>>>>>>> 2a4d539 (primeiro git)
           quantity?: number;
           unit?: string;
         };
@@ -121,6 +148,7 @@ export type Database = {
         };
         Relationships: [];
       };
+<<<<<<< HEAD
       recipes: {
         Row: {
           created_at: string;
@@ -196,6 +224,8 @@ export type Database = {
           },
         ];
       };
+=======
+>>>>>>> 2a4d539 (primeiro git)
     };
     Views: {
       [_ in never]: never;
@@ -222,6 +252,7 @@ export type Database = {
         Args: { p_active: boolean; p_product_id: string };
         Returns: undefined;
       };
+<<<<<<< HEAD
       set_product_cancelled: {
         Args: { p_cancelled: boolean; p_product_id: string };
         Returns: undefined;
@@ -239,6 +270,8 @@ export type Database = {
         };
         Returns: string;
       };
+=======
+>>>>>>> 2a4d539 (primeiro git)
     };
     Enums: {
       [_ in never]: never;

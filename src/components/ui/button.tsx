@@ -17,7 +17,11 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         entrada: "bg-success text-success-foreground shadow hover:bg-success/90",
+<<<<<<< HEAD
         saida: "bg-destructive text-destructive-foreground shadow hover:bg-destructive/90",
+=======
+        saida: "bg-warning text-warning-foreground shadow hover:bg-warning/90",
+>>>>>>> 2a4d539 (primeiro git)
       },
       size: {
         default: "h-9 px-4 py-2",

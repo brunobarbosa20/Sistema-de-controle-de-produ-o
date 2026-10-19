@@ -4,10 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthCard } from "@/components/AuthCard";
+<<<<<<< HEAD
 import { AppNavigation, type AppSection } from "@/components/AppNavigation";
 import { Dashboard } from "@/components/Dashboard";
 import { HomePage } from "@/components/HomePage";
 import { RecipesPage } from "@/components/RecipesPage";
+=======
+import { Dashboard } from "@/components/Dashboard";
+>>>>>>> 2a4d539 (primeiro git)
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -17,7 +21,11 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
+<<<<<<< HEAD
           "Controle seu estoque: cadastre produtos em UN, GR ou ML, registre entradas e saídas e consulte o histórico.",
+=======
+          "Controle seu estoque: cadastre produtos em UN ou GR, registre entradas e saídas e consulte o histórico.",
+>>>>>>> 2a4d539 (primeiro git)
       },
       { property: "og:title", content: "Sistema de Controle de Produção" },
       {
@@ -34,7 +42,10 @@ export const Route = createFileRoute("/")({
 function Index() {
   const qc = useQueryClient();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+<<<<<<< HEAD
   const [activeSection, setActiveSection] = useState<AppSection>("home");
+=======
+>>>>>>> 2a4d539 (primeiro git)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -47,6 +58,7 @@ function Index() {
 
   if (session === undefined) return <div className="min-h-screen" />;
   if (!session) return <AuthCard />;
+<<<<<<< HEAD
   return (
     <div className="min-h-screen md:pl-64">
       <AppNavigation activeSection={activeSection} onNavigate={setActiveSection} />
@@ -63,4 +75,7 @@ function Index() {
       )}
     </div>
   );
+=======
+  return <Dashboard email={session.user.email ?? ""} userId={session.user.id} />;
+>>>>>>> 2a4d539 (primeiro git)
 }

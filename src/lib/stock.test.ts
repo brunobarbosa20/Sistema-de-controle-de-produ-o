@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateUnitPrice,
+<<<<<<< HEAD
   calculateInventoryValue,
+=======
+>>>>>>> 2a4d539 (primeiro git)
   calculateWeightedAverageUnitCost,
   formatAverageUnitCost,
   formatCurrencyInput,
@@ -22,12 +25,15 @@ describe("quantidades", () => {
     expect(validateQuantity("2,5", "UN").error).toBeDefined();
     expect(validateQuantity("3", "UN").value).toBe(3);
   });
+<<<<<<< HEAD
   it("aceita mililitros inteiros e os formata com a unidade ML", () => {
     expect(validateQuantity("250", "ML").value).toBe(250);
     expect(validateQuantity("2,5", "ML").error).toContain("mililitros");
     expect(formatUnitPrice(0.04, "ML")).toBe("R$ 0,04 / ml");
     expect(formatAverageUnitCost(0.04, "ML")).toBe("R$ 0,04000 / ml");
   });
+=======
+>>>>>>> 2a4d539 (primeiro git)
   it("rejeita zero e texto", () => {
     expect(validateQuantity("0", "GR").error).toBeDefined();
     expect(validateQuantity("abc", "GR").error).toBeDefined();
@@ -79,6 +85,7 @@ describe("quantidades", () => {
       ]),
     ).toBeNull();
   });
+<<<<<<< HEAD
   it("calcula o valor em estoque pelo custo médio e conta itens sem custo", () => {
     expect(
       calculateInventoryValue([
@@ -89,4 +96,6 @@ describe("quantidades", () => {
       ]),
     ).toEqual({ total: 35, unpricedItems: 1 });
   });
+=======
+>>>>>>> 2a4d539 (primeiro git)
 });

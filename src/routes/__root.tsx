@@ -90,11 +90,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
+<<<<<<< HEAD
       {
         rel: "icon",
         href: `${import.meta.env.BASE_URL}control-icon.svg`,
         type: "image/svg+xml",
       },
+=======
+      { rel: "icon", href: "/control-icon.svg", type: "image/svg+xml" },
+>>>>>>> 2a4d539 (primeiro git)
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
         rel: "stylesheet",

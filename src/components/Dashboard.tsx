@@ -5,7 +5,10 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Archive,
+<<<<<<< HEAD
   Ban,
+=======
+>>>>>>> 2a4d539 (primeiro git)
   Boxes,
   History,
   LogOut,
@@ -41,7 +44,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   brl,
+<<<<<<< HEAD
   calculateInventoryValue,
+=======
+>>>>>>> 2a4d539 (primeiro git)
   calculateUnitPrice,
   calculateWeightedAverageUnitCost,
   formatAverageUnitCost,
@@ -60,11 +66,16 @@ type Product = {
   name: string;
   notes: string;
   unit: Unit;
+<<<<<<< HEAD
   grams_per_unit: number | null;
   quantity: number;
   active: boolean;
   cancelled: boolean;
   pending_registration: boolean;
+=======
+  quantity: number;
+  active: boolean;
+>>>>>>> 2a4d539 (primeiro git)
 };
 type InventoryRole = "admin" | "operator" | "viewer";
 type InventoryMember = { user_id: string; email: string; role: InventoryRole; created_at: string };
@@ -111,9 +122,13 @@ function useProducts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
+<<<<<<< HEAD
         .select(
           "id,code,name,notes,unit,grams_per_unit,quantity,active,cancelled,pending_registration",
         )
+=======
+        .select("id,code,name,notes,unit,quantity,active")
+>>>>>>> 2a4d539 (primeiro git)
         .order("name");
       if (error) throw error;
       return data.map((p) => ({
@@ -141,6 +156,7 @@ function useMovements() {
   });
 }
 
+<<<<<<< HEAD
 function useInventoryCosts(products: Product[]) {
   return useQuery({
     queryKey: ["inventory-costs", products.map((product) => product.id).sort()],
@@ -187,6 +203,8 @@ function useInventoryCosts(products: Product[]) {
   });
 }
 
+=======
+>>>>>>> 2a4d539 (primeiro git)
 export function Dashboard({ email, userId }: { email: string; userId: string }) {
   const queryClient = useQueryClient();
   const products = useProducts();
@@ -197,6 +215,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
   >(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [productToDeactivate, setProductToDeactivate] = useState<Product | null>(null);
+<<<<<<< HEAD
   const [productList, setProductList] = useState<"active" | "inactive" | "pending" | "cancelled">(
     "active",
   );
@@ -220,10 +239,21 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
           : !product.cancelled &&
             !product.pending_registration &&
             product.active === (productList === "active")) &&
+=======
+  const [showInactiveProducts, setShowInactiveProducts] = useState(false);
+  const [preset, setPreset] = useState<string | undefined>();
+  const [q, setQ] = useState("");
+
+  const activeProducts = (products.data ?? []).filter((product) => product.active);
+  const list = (products.data ?? []).filter(
+    (product) =>
+      product.active !== showInactiveProducts &&
+>>>>>>> 2a4d539 (primeiro git)
       (product.name.toLowerCase().includes(q.toLowerCase()) ||
         product.code.toLowerCase().includes(q.toLowerCase())),
   );
   const zero = activeProducts.filter((product) => product.quantity === 0).length;
+<<<<<<< HEAD
   const inventoryValue = calculateInventoryValue(
     activeProducts.map((product) => ({
       quantity: product.quantity,
@@ -233,6 +263,13 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
   const role = membership.data;
   const canOperate = role === "admin" || role === "operator";
   const selectedProduct = (products.data ?? []).find((product) => product.id === selectedProductId);
+=======
+  const role = membership.data;
+  const canOperate = role === "admin" || role === "operator";
+  const selectedProduct = (products.data ?? []).find(
+    (product) => product.id === selectedProductId,
+  );
+>>>>>>> 2a4d539 (primeiro git)
 
   const open = (d: "entrada" | "saida", id?: string) => {
     setPreset(id);
@@ -258,6 +295,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
     await queryClient.invalidateQueries({ queryKey: ["products"] });
   }
 
+<<<<<<< HEAD
   async function changeProductCancellation(product: Product, cancelled: boolean) {
     const { error } = await supabase.rpc("set_product_cancelled", {
       p_product_id: product.id,
@@ -272,6 +310,8 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
     await queryClient.invalidateQueries({ queryKey: ["products"] });
   }
 
+=======
+>>>>>>> 2a4d539 (primeiro git)
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pb-10">
       <header className="mb-6 flex items-center justify-between gap-3">
@@ -304,6 +344,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
         </p>
       )}
 
+<<<<<<< HEAD
       <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <div className="rounded-2xl border bg-card p-3 sm:p-4">
           <p className="text-sm text-muted-foreground">Produtos</p>
@@ -338,6 +379,24 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
       </section>
 
       {canOperate && productList === "active" && (
+=======
+      <section className="mb-6 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border bg-card p-5">
+          <p className="text-sm text-muted-foreground">Produtos</p>
+          <p className="mt-1 font-display text-3xl font-bold">
+            {products.data ? activeProducts.length : "–"}
+          </p>
+        </div>
+        <div className="rounded-2xl border bg-card p-5">
+          <p className="text-sm text-muted-foreground">Sem saldo</p>
+          <p className="mt-1 font-display text-3xl font-bold text-destructive">
+            {products.data ? zero : "–"}
+          </p>
+        </div>
+      </section>
+
+      {canOperate && !showInactiveProducts && (
+>>>>>>> 2a4d539 (primeiro git)
         <div className="mb-6 hidden gap-2 sm:flex">
           <Button onClick={() => setDialog("product")}>
             <Plus /> Novo produto
@@ -372,12 +431,18 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
         <TabsContent value="saldo">
           <div className="mb-3 flex gap-2">
             <Button
+<<<<<<< HEAD
               variant={productList === "active" ? "secondary" : "outline"}
               onClick={() => setProductList("active")}
+=======
+              variant={showInactiveProducts ? "outline" : "secondary"}
+              onClick={() => setShowInactiveProducts(false)}
+>>>>>>> 2a4d539 (primeiro git)
             >
               Ativos
             </Button>
             <Button
+<<<<<<< HEAD
               variant={productList === "inactive" ? "secondary" : "outline"}
               onClick={() => setProductList("inactive")}
             >
@@ -397,6 +462,15 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
             </Button>
           </div>
           {canOperate && productList === "active" && (
+=======
+              variant={showInactiveProducts ? "secondary" : "outline"}
+              onClick={() => setShowInactiveProducts(true)}
+            >
+              Inativos
+            </Button>
+          </div>
+          {canOperate && !showInactiveProducts && (
+>>>>>>> 2a4d539 (primeiro git)
             <p className="mb-3 text-xs text-muted-foreground">
               Para inativar um produto, primeiro registre saídas até zerar o saldo. O histórico será
               preservado.
@@ -416,6 +490,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
           ) : list.length === 0 ? (
             <div className="rounded-2xl border border-dashed p-10 text-center">
               <p className="text-muted-foreground">
+<<<<<<< HEAD
                 {productList === "cancelled"
                   ? "Nenhum produto cancelado."
                   : productList === "inactive"
@@ -425,12 +500,18 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
                       : "Nenhum produto ainda."}
               </p>
               {canOperate && productList === "active" && (
+=======
+                {showInactiveProducts ? "Nenhum produto inativo." : "Nenhum produto ainda."}
+              </p>
+              {canOperate && !showInactiveProducts && (
+>>>>>>> 2a4d539 (primeiro git)
                 <Button className="mt-4" onClick={() => setDialog("product")}>
                   <Plus /> Cadastrar produto
                 </Button>
               )}
             </div>
           ) : (
+<<<<<<< HEAD
             <ul className="h-[85vh] divide-y overflow-y-auto overscroll-contain rounded-2xl border bg-card">
               {list.map((p) => {
                 const averageCost = inventoryCosts.data?.[p.id];
@@ -486,6 +567,34 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
                   </li>
                 );
               })}
+=======
+            <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
+              {list.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-3 p-4">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+                    onClick={() => openProduct(p.id)}
+                    aria-label={`Detalhes de ${p.name}, saldo ${formatQty(p.quantity, p.unit)}`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{p.name}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {p.code} · {p.unit.toLowerCase()}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-xs text-muted-foreground">Saldo atual</span>
+                      <span
+                        className={`font-mono text-base ${p.quantity === 0 ? "text-destructive" : ""}`}
+                      >
+                        {formatQty(p.quantity, p.unit)}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+>>>>>>> 2a4d539 (primeiro git)
             </ul>
           )}
         </TabsContent>
@@ -575,7 +684,13 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
       >
         <DialogContent
           className={
+<<<<<<< HEAD
             dialog === "product-detail" ? "max-h-[90vh] max-w-2xl overflow-y-auto" : "max-w-md"
+=======
+            dialog === "product-detail"
+              ? "max-h-[90vh] max-w-2xl overflow-y-auto"
+              : "max-w-md"
+>>>>>>> 2a4d539 (primeiro git)
           }
         >
           {dialog === "product" && <ProductForm onDone={() => setDialog(null)} />}
@@ -591,7 +706,14 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
             />
           )}
           {dialog === "edit-product" && selectedProduct && (
+<<<<<<< HEAD
             <EditProductForm product={selectedProduct} onDone={() => setDialog("product-detail")} />
+=======
+            <EditProductForm
+              product={selectedProduct}
+              onDone={() => setDialog("product-detail")}
+            />
+>>>>>>> 2a4d539 (primeiro git)
           )}
           {(dialog === "entrada" || dialog === "saida") && (
             <MovementForm
@@ -627,6 +749,7 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+<<<<<<< HEAD
       <AlertDialog
         open={productToCancel !== null}
         onOpenChange={(open) => !open && setProductToCancel(null)}
@@ -659,6 +782,8 @@ export function Dashboard({ email, userId }: { email: string; userId: string }) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+=======
+>>>>>>> 2a4d539 (primeiro git)
     </div>
   );
 }
@@ -667,9 +792,12 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
   const queryClient = useQueryClient();
   const [name, setName] = useState(product.name);
   const [notes, setNotes] = useState(product.notes);
+<<<<<<< HEAD
   const [gramsPerUnit, setGramsPerUnit] = useState(
     product.grams_per_unit === null ? "" : formatQuantityInput(String(product.grams_per_unit)),
   );
+=======
+>>>>>>> 2a4d539 (primeiro git)
   const [busy, setBusy] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -678,6 +806,7 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
       toast.error("Informe a descrição do produto");
       return;
     }
+<<<<<<< HEAD
     let parsedGramsPerUnit: number | null = null;
     if (gramsPerUnit.trim()) {
       const value = validateQuantity(gramsPerUnit, "GR");
@@ -687,15 +816,21 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
       }
       parsedGramsPerUnit = value.value;
     }
+=======
+>>>>>>> 2a4d539 (primeiro git)
 
     setBusy(true);
     const { data, error } = await supabase
       .from("products")
+<<<<<<< HEAD
       .update({
         name: name.trim(),
         notes: notes.trim(),
         grams_per_unit: parsedGramsPerUnit,
       })
+=======
+      .update({ name: name.trim(), notes: notes.trim() })
+>>>>>>> 2a4d539 (primeiro git)
       .eq("id", product.id)
       .select("id")
       .single();
@@ -712,7 +847,10 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
 
     toast.success("Produto atualizado");
     await queryClient.invalidateQueries({ queryKey: ["products"] });
+<<<<<<< HEAD
     await queryClient.invalidateQueries({ queryKey: ["recipe-inventory-products"] });
+=======
+>>>>>>> 2a4d539 (primeiro git)
     onDone();
   }
 
@@ -739,6 +877,7 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
           rows={4}
         />
       </div>
+<<<<<<< HEAD
       {product.unit === "GR" && (
         <div className="space-y-1.5">
           <Label htmlFor="product-grams-per-unit">Peso de 1 unidade (opcional)</Label>
@@ -755,6 +894,8 @@ function EditProductForm({ product, onDone }: { product: Product; onDone: () => 
           </p>
         </div>
       )}
+=======
+>>>>>>> 2a4d539 (primeiro git)
       <Button type="submit" className="w-full" disabled={busy}>
         Salvar alterações
       </Button>
@@ -801,7 +942,10 @@ function ProductDetail({
       }
     },
   });
+<<<<<<< HEAD
   const historyItems = history.data ?? [];
+=======
+>>>>>>> 2a4d539 (primeiro git)
   const averageUnitCost = history.data
     ? calculateWeightedAverageUnitCost(
         history.data.map((movement) => ({
@@ -819,9 +963,12 @@ function ProductDetail({
         <DialogTitle>{product.name}</DialogTitle>
         <p className="text-sm text-muted-foreground">
           {product.code} · Unidade {product.unit}
+<<<<<<< HEAD
           {product.unit === "GR" && product.grams_per_unit !== null
             ? ` · 1 UN = ${formatQty(product.grams_per_unit, "GR")}`
             : ""}
+=======
+>>>>>>> 2a4d539 (primeiro git)
         </p>
       </DialogHeader>
       <section className="rounded-xl border bg-card p-4">
@@ -834,11 +981,19 @@ function ProductDetail({
           {history.isLoading ? (
             <p className="mt-1 text-sm text-muted-foreground">Calculando…</p>
           ) : history.isError ? (
+<<<<<<< HEAD
             <p className="mt-1 text-sm text-destructive">
               Indisponível: erro ao carregar entradas.
             </p>
           ) : averageUnitCost === null ? (
             <p className="mt-1 text-sm text-muted-foreground">Sem entradas com custo registrado.</p>
+=======
+            <p className="mt-1 text-sm text-destructive">Indisponível: erro ao carregar entradas.</p>
+          ) : averageUnitCost === null ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sem entradas com custo registrado.
+            </p>
+>>>>>>> 2a4d539 (primeiro git)
           ) : (
             <p className="mt-1 font-medium">
               {formatAverageUnitCost(averageUnitCost, product.unit)}
@@ -852,6 +1007,7 @@ function ProductDetail({
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">{product.notes}</p>
         </section>
       )}
+<<<<<<< HEAD
       {canOperate && !product.cancelled && (
         <div className="flex flex-wrap gap-2">
           {product.pending_registration ? (
@@ -860,6 +1016,11 @@ function ProductDetail({
               disso.
             </p>
           ) : product.active ? (
+=======
+      {canOperate && (
+        <div className="flex flex-wrap gap-2">
+          {product.active ? (
+>>>>>>> 2a4d539 (primeiro git)
             <>
               <Button variant="entrada" onClick={onEntry}>
                 <ArrowDownToLine /> Entrada
@@ -876,7 +1037,11 @@ function ProductDetail({
           <Button variant="outline" onClick={onEdit}>
             <Pencil /> Editar item
           </Button>
+<<<<<<< HEAD
           {product.active && !product.pending_registration && (
+=======
+          {product.active && (
+>>>>>>> 2a4d539 (primeiro git)
             <Button
               variant="outline"
               title={product.quantity === 0 ? "Inativar produto" : "Zere o saldo antes de inativar"}
@@ -891,19 +1056,34 @@ function ProductDetail({
       <section className="space-y-3">
         <h3 className="font-semibold">Histórico completo</h3>
         {history.isLoading ? (
+<<<<<<< HEAD
           <p className="py-6 text-center text-sm text-muted-foreground">Carregando histórico…</p>
+=======
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Carregando histórico…
+          </p>
+>>>>>>> 2a4d539 (primeiro git)
         ) : history.isError ? (
           <p role="alert" className="py-6 text-center text-sm text-destructive">
             Não foi possível carregar o histórico: {history.error.message}
           </p>
+<<<<<<< HEAD
         ) : historyItems.length === 0 ? (
+=======
+        ) : history.data.length === 0 ? (
+>>>>>>> 2a4d539 (primeiro git)
           <p className="py-6 text-center text-sm text-muted-foreground">
             Nenhuma movimentação registrada para este item.
           </p>
         ) : (
           <ul className="divide-y overflow-hidden rounded-xl border">
+<<<<<<< HEAD
             {historyItems.map((movement) => (
               <li key={movement.id} className="flex items-start gap-3 p-3">
+=======
+            {history.data.map((movement) => (
+              <li key={movement.id} className="flex items-center gap-3 p-3">
+>>>>>>> 2a4d539 (primeiro git)
                 <div
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${movement.type === "entrada" ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground"}`}
                 >
@@ -914,8 +1094,15 @@ function ProductDetail({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
+<<<<<<< HEAD
                   <p className="font-medium">{movement.type === "entrada" ? "Entrada" : "Saída"}</p>
                   <p className="whitespace-normal break-words text-xs text-muted-foreground">
+=======
+                  <p className="font-medium">
+                    {movement.type === "entrada" ? "Entrada" : "Saída"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+>>>>>>> 2a4d539 (primeiro git)
                     {new Date(movement.created_at).toLocaleString("pt-BR", {
                       dateStyle: "short",
                       timeStyle: "short",
@@ -1092,7 +1279,11 @@ function ProductForm({ onDone }: { onDone: () => void }) {
         <Select
           value={unit}
           onValueChange={(value) => {
+<<<<<<< HEAD
             if (value === "UN" || value === "GR" || value === "ML") setUnit(value);
+=======
+            if (value === "UN" || value === "GR") setUnit(value);
+>>>>>>> 2a4d539 (primeiro git)
           }}
         >
           <SelectTrigger>
@@ -1101,18 +1292,30 @@ function ProductForm({ onDone }: { onDone: () => void }) {
           <SelectContent>
             <SelectItem value="UN">UN (unidade)</SelectItem>
             <SelectItem value="GR">GR (gramas)</SelectItem>
+<<<<<<< HEAD
             <SelectItem value="ML">ML (mililitros)</SelectItem>
+=======
+>>>>>>> 2a4d539 (primeiro git)
           </SelectContent>
         </Select>
       </div>
       <p className="text-xs text-muted-foreground">
+<<<<<<< HEAD
         Cada produto usa uma unidade fixa: UN para peças, GR para gramas e ML para mililitros.
+=======
+        Cada produto usa uma unidade fixa. Cadastre itens por peça em UN ou ingredientes pesados em
+        gramas (GR).
+>>>>>>> 2a4d539 (primeiro git)
       </p>
       <div className="space-y-1.5">
         <Label>Saldo inicial (opcional)</Label>
         <Input
           inputMode="decimal"
+<<<<<<< HEAD
           placeholder={unit === "UN" ? "ex: 10" : "ex: 500"}
+=======
+          placeholder={unit === "GR" ? "ex: 500" : "ex: 10"}
+>>>>>>> 2a4d539 (primeiro git)
           value={initial}
           onChange={(e) => setInitial(formatQuantityInput(e.target.value))}
         />
@@ -1124,6 +1327,7 @@ function ProductForm({ onDone }: { onDone: () => void }) {
   );
 }
 
+<<<<<<< HEAD
 function CalculatedUnitPrice({
   quantity,
   packageTotal,
@@ -1134,6 +1338,16 @@ function CalculatedUnitPrice({
   unit: Unit;
 }) {
   const parsedQuantity = validateQuantity(quantity, unit);
+=======
+function CalculatedGramPrice({
+  quantity,
+  packageTotal,
+}: {
+  quantity: string;
+  packageTotal: string;
+}) {
+  const parsedQuantity = validateQuantity(quantity, "GR");
+>>>>>>> 2a4d539 (primeiro git)
   const parsedTotal = parseCurrencyInput(packageTotal);
   if (parsedQuantity.value === undefined || parsedTotal === null) return null;
 
@@ -1141,7 +1355,11 @@ function CalculatedUnitPrice({
     <p className="text-sm text-muted-foreground">
       Custo calculado:{" "}
       <span className="font-medium text-foreground">
+<<<<<<< HEAD
         {formatUnitPrice(calculateUnitPrice(parsedTotal, parsedQuantity.value), unit)}
+=======
+        {formatUnitPrice(calculateUnitPrice(parsedTotal, parsedQuantity.value), "GR")}
+>>>>>>> 2a4d539 (primeiro git)
       </span>
     </p>
   );
@@ -1186,13 +1404,22 @@ function MovementForm({
       const parsedPrice = parseCurrencyInput(price);
       if (parsedPrice === null) {
         toast.error(
+<<<<<<< HEAD
           product.unit !== "UN"
+=======
+          product.unit === "GR"
+>>>>>>> 2a4d539 (primeiro git)
             ? "Informe o valor total do pacote"
             : "Informe um valor válido para a entrada",
         );
         return;
       }
+<<<<<<< HEAD
       entryPrice = product.unit !== "UN" ? calculateUnitPrice(parsedPrice, v.value!) : parsedPrice;
+=======
+      entryPrice =
+        product.unit === "GR" ? calculateUnitPrice(parsedPrice, v.value!) : parsedPrice;
+>>>>>>> 2a4d539 (primeiro git)
     }
     setBusy(true);
     const { error } = await supabase.from("movements").insert({
@@ -1247,7 +1474,11 @@ function MovementForm({
               <Label>Quantidade {product ? `(${product.unit})` : ""}</Label>
               <Input
                 inputMode="decimal"
+<<<<<<< HEAD
                 placeholder={product?.unit === "UN" ? "ex: 1" : "ex: 500"}
+=======
+                placeholder={product?.unit === "GR" ? "ex: 500" : "ex: 1"}
+>>>>>>> 2a4d539 (primeiro git)
                 value={qty}
                 onChange={(e) => setQty(formatQuantityInput(e.target.value))}
               />
@@ -1255,11 +1486,19 @@ function MovementForm({
             {type === "entrada" && (
               <div className="space-y-1.5">
                 <Label>
+<<<<<<< HEAD
                   {product?.unit === "UN" ? "Valor por unidade (R$)" : "Valor total do pacote (R$)"}
                 </Label>
                 <Input
                   inputMode="decimal"
                   placeholder={product?.unit === "UN" ? "ex: 5,00" : "ex: 10,00"}
+=======
+                  {product?.unit === "GR" ? "Valor total do pacote (R$)" : "Valor por unidade (R$)"}
+                </Label>
+                <Input
+                  inputMode="decimal"
+                  placeholder={product?.unit === "GR" ? "ex: 10,00" : "ex: 5,00"}
+>>>>>>> 2a4d539 (primeiro git)
                   value={price}
                   onChange={(event) => {
                     const input = event.currentTarget;
@@ -1273,8 +1512,13 @@ function MovementForm({
               </div>
             )}
           </div>
+<<<<<<< HEAD
           {type === "entrada" && product && product.unit !== "UN" && (
             <CalculatedUnitPrice quantity={qty} packageTotal={price} unit={product.unit} />
+=======
+          {type === "entrada" && product?.unit === "GR" && (
+            <CalculatedGramPrice quantity={qty} packageTotal={price} />
+>>>>>>> 2a4d539 (primeiro git)
           )}
           <div className="space-y-1.5">
             <Label>Observação</Label>

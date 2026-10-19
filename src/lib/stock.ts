@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 export type Unit = "UN" | "GR" | "ML";
+=======
+export type Unit = "UN" | "GR";
+>>>>>>> 2a4d539 (primeiro git)
 
 /** Aceita decimais locais e agrupamentos como "1.234" ou "1.234,56". */
 export function parseDecimal(input: string): number | null {
@@ -35,6 +39,7 @@ export function calculateUnitPrice(totalPrice: number, quantity: number): number
 }
 
 export function formatUnitPrice(price: number, unit: Unit): string {
+<<<<<<< HEAD
   const formatted = price
     .toLocaleString("pt-BR", {
       style: "currency",
@@ -44,6 +49,15 @@ export function formatUnitPrice(price: number, unit: Unit): string {
     })
     .replace(/\u00a0/g, " ");
   return `${formatted} / ${formatUnitLabel(unit)}`;
+=======
+  const formatted = price.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).replace(/\u00a0/g, " ");
+  return `${formatted} / ${unit === "GR" ? "gr" : "un"}`;
+>>>>>>> 2a4d539 (primeiro git)
 }
 
 export function formatAverageUnitCost(price: number, unit: Unit): string {
@@ -55,6 +69,7 @@ export function formatAverageUnitCost(price: number, unit: Unit): string {
       maximumFractionDigits: 5,
     })
     .replace(/\u00a0/g, " ");
+<<<<<<< HEAD
   return `${formatted} / ${formatUnitLabel(unit)}`;
 }
 
@@ -67,6 +82,9 @@ export function formatUnitLabel(unit: Unit): string {
     case "ML":
       return "ml";
   }
+=======
+  return `${formatted} / ${unit === "GR" ? "gr" : "un"}`;
+>>>>>>> 2a4d539 (primeiro git)
 }
 
 export function calculateWeightedAverageUnitCost(
@@ -90,6 +108,7 @@ export function calculateWeightedAverageUnitCost(
   return totalCost / totalQuantity;
 }
 
+<<<<<<< HEAD
 export function calculateInventoryValue(
   products: ReadonlyArray<{ quantity: number; averageUnitCost: number | null }>,
 ): { total: number; unpricedItems: number } {
@@ -108,6 +127,9 @@ export function calculateInventoryValue(
 }
 
 /** UN, GR e ML representam quantidades inteiras no estoque. */
+=======
+/** UN e GR representam unidades inteiras: peças ou gramas. */
+>>>>>>> 2a4d539 (primeiro git)
 export function validateQuantity(input: string, unit: Unit): { value?: number; error?: string } {
   const n = parseDecimal(input);
   if (n === null || n <= 0) return { error: "Informe uma quantidade maior que zero" };
@@ -116,9 +138,13 @@ export function validateQuantity(input: string, unit: Unit): { value?: number; e
       error:
         unit === "UN"
           ? "Produtos em UN aceitam apenas números inteiros"
+<<<<<<< HEAD
           : unit === "GR"
             ? "Produtos em GR aceitam apenas gramas inteiras"
             : "Produtos em ML aceitam apenas mililitros inteiros",
+=======
+          : "Produtos em GR aceitam apenas gramas inteiras",
+>>>>>>> 2a4d539 (primeiro git)
     };
   }
   return { value: n };
